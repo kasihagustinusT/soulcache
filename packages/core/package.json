@@ -57,9 +57,9 @@
     "clean": "rm -rf dist node_modules"
   },
   "devDependencies": {
-    "typescript": "^5.4.0",
+    "typescript": "^7.0.2",
     "tsup": "^8.0.0",
-    "vitest": "^3.0.0"
+    "vitest": "^4.1.10"
   },
   "engines": {
     "node": ">=20"
