@@ -174,14 +174,20 @@ function UserList() {
 | [Performance](https://soulcache.vercel.app/docs/performance) | Benchmarks and optimization |
 | [Troubleshooting](https://soulcache.vercel.app/docs/troubleshooting) | Common issues and solutions |
 
-## Project Status
+## Current Status
 
-- Production-ready
-- MIT License
-- Semantic Versioning
-- GitHub Actions CI/CD
-- TypeScript strict mode
-- Actively maintained
+• Stable public API
+
+• Semantic Versioning
+
+• MIT License
+
+• GitHub Actions CI
+
+• TypeScript strict mode
+
+• Framework-agnostic runtime
+
 
 ## Contributing
 
