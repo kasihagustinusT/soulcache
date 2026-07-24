@@ -1,0 +1,235 @@
+---
+title: Scheduler
+description: API Reference for the Scheduler class
+---
+
+## Scheduler
+
+Manages task execution with priority-based scheduling, batching, and concurrency control.
+
+### Import
+
+```typescript
+import { Scheduler } from '@soulcache/core';
+```
+
+### Constructor
+
+```typescript
+new Scheduler(options?: SchedulerOptions)
+```
+
+#### Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `maxQueueSize` | `number` | `10000` | Maximum tasks in queue |
+| `eventBus` | `EventBus` | — | Optional event bus for metrics |
+
+### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `isDestroyed` | `boolean` | Whether scheduler is destroyed |
+| `queueSize` | `number` | Current queue size |
+| `activeTaskCount` | `number` | Number of currently running tasks |
+
+### Methods
+
+#### `schedule(options)`
+
+Schedule a task for execution. Returns a task ID.
+
+```typescript
+schedule(options: ScheduleTaskOptions): string
+```
+
+#### `cancel(taskId)`
+
+Cancel a scheduled task.
+
+```typescript
+cancel(taskId: string): boolean
+```
+
+#### `getTask(taskId)`
+
+Get a scheduled task by ID.
+
+```typescript
+getTask(taskId: string): ScheduledTask | undefined
+```
+
+#### `getTasksByStatus(status)`
+
+Get tasks filtered by status.
+
+```typescript
+getTasksByStatus(status: TaskStatus): ScheduledTask[]
+```
+
+#### `getTasksByCategory(category)`
+
+Get tasks filtered by category.
+
+```typescript
+getTasksByCategory(category: TaskCategory): ScheduledTask[]
+```
+
+#### `flush()`
+
+Execute all pending tasks.
+
+```typescript
+flush(): number
+```
+
+#### `flushCategory(category)`
+
+Execute pending tasks in a specific category.
+
+```typescript
+flushCategory(category: TaskCategory): number
+```
+
+#### `flushIdle()`
+
+Execute idle-priority tasks.
+
+```typescript
+flushIdle(): number
+```
+
+#### `getMetrics()`
+
+Get scheduler metrics.
+
+```typescript
+getMetrics(): SchedulerMetrics
+```
+
+#### `destroy()`
+
+Destroy the scheduler and cancel all tasks.
+
+```typescript
+destroy(): void
+```
+
+### Types
+
+#### `ScheduleTaskOptions`
+
+```typescript
+interface ScheduleTaskOptions {
+  category: TaskCategory;
+  priority?: TaskPriority;              // default: 'normal'
+  fn: () => void | Promise<void>;
+  owner?: string;                       // default: 'internal'
+  dependencies?: readonly string[];
+  metadata?: Record<string, unknown>;
+}
+```
+
+#### `ScheduledTask`
+
+```typescript
+interface ScheduledTask {
+  readonly id: string;
+  readonly owner: string;
+  readonly category: TaskCategory;
+  readonly priority: TaskPriority;
+  status: TaskStatus;
+  readonly fn: () => void | Promise<void>;
+  readonly dependencies: readonly string[];
+  readonly metadata: Record<string, unknown>;
+  readonly createdAt: number;
+  startedAt: number | undefined;
+  completedAt: number | undefined;
+  error: Error | undefined;
+}
+```
+
+#### `TaskCategory`
+
+```typescript
+type TaskCategory =
+  | 'query-execution'
+  | 'mutation-execution'
+  | 'cache-update'
+  | 'cache-cleanup'
+  | 'observer-notification'
+  | 'event-dispatch'
+  | 'persistence'
+  | 'plugin-hook'
+  | 'internal-maintenance';
+```
+
+#### `TaskPriority`
+
+```typescript
+type TaskPriority = 'critical' | 'high' | 'normal' | 'low' | 'idle';
+```
+
+#### `TaskStatus`
+
+```typescript
+type TaskStatus = 'pending' | 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+```
+
+#### `SchedulerMetrics`
+
+```typescript
+interface SchedulerMetrics {
+  readonly totalScheduled: number;
+  readonly totalCompleted: number;
+  readonly totalFailed: number;
+  readonly totalCancelled: number;
+  readonly queueSize: number;
+  readonly activeTaskCount: number;
+  readonly flushCount: number;
+  readonly batchCount: number;
+}
+```
+
+### Usage
+
+```typescript
+import { Scheduler } from '@soulcache/core';
+
+const scheduler = new Scheduler({ maxQueueSize: 5000 });
+
+// Schedule a high-priority cache update
+const taskId = scheduler.schedule({
+  category: 'cache-update',
+  priority: 'high',
+  fn: () => cache.set({ queryKey: ['users'], data: users }),
+  owner: 'query-client',
+});
+
+// Schedule with dependencies
+const taskId2 = scheduler.schedule({
+  category: 'observer-notification',
+  priority: 'normal',
+  fn: () => notifyObservers(),
+  dependencies: [taskId],
+});
+
+// Check metrics
+const metrics = scheduler.getMetrics();
+console.log(`Completed: ${metrics.totalCompleted}, Queue: ${metrics.queueSize}`);
+```
+
+### Best Practices
+
+<Note type="tip" title="Scheduler Guidelines">
+- **Use appropriate priorities** — Ensure critical tasks run first
+- **Declare dependencies** — Maintain correct execution order
+- **Keep tasks short** — Don't block the scheduler
+- **Monitor queue size** — Detect overload early
+</Note>
+
+### Related
+
+- [Architecture](/docs/architecture)
+- [Query System](/docs/query-system)

@@ -1,0 +1,51 @@
+---
+title: Security
+description: Security policies and practices
+---
+
+## Security
+
+SoulCache takes security seriously.
+
+### Reporting Vulnerabilities
+
+If you discover a security vulnerability, please report it responsibly:
+
+<Note type="danger" title="Security Reporting">
+- **Do not** open a public issue or pull request
+- **Email** the maintainer or use [GitHub's private vulnerability reporting](https://github.com/kasihagustinusT/soulcache/security/advisories/new)
+- Include a description of the vulnerability
+- Include steps to reproduce
+</Note>
+
+### Security Practices
+
+#### Zero Runtime Dependencies
+
+SoulCache has zero runtime dependencies, eliminating supply chain risks.
+
+#### No Remote Code Execution
+
+SoulCache does not execute remote code or use eval().
+
+#### No Secret Logging
+
+SoulCache does not log sensitive data.
+
+#### Type Safety
+
+Full TypeScript with strict mode prevents common security issues.
+
+### Best Practices
+
+<Note type="tip" title="Security Guidelines">
+- **Keep dependencies updated** — Use latest versions
+- **Use environment variables** — Don't hardcode secrets
+- **Validate inputs** — Always validate data from external sources
+- **Use HTTPS** — Encrypt data in transit
+</Note>
+
+### Related
+
+- [Contributing](/docs/contributing)
+- [Architecture](/docs/architecture)

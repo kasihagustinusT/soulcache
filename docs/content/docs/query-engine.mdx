@@ -1,0 +1,23 @@
+---
+title: Query Engine
+description: API Reference for the QueryEngine (internal orchestrator)
+---
+
+## QueryEngine
+
+The QueryEngine is an internal orchestrator that manages query lifecycle, caching, and observer coordination. It is accessed indirectly through `QueryClient`.
+
+### Access
+
+```typescript
+import { QueryClient } from '@soulcache/core';
+
+const client = new QueryClient();
+// QueryEngine is used internally — use QueryClient methods directly
+```
+
+### Related
+
+- [QueryClient](/docs/query-client) — Primary user-facing API
+- [Cache System](/docs/cache-system)
+- [Architecture](/docs/architecture)

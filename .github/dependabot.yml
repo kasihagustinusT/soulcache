@@ -1,0 +1,46 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+      - automerge
+    groups:
+      production:
+        patterns:
+          - '*'
+        exclude-patterns:
+          - '@types/*'
+          - 'vitest*'
+          - '@vitest*'
+          - 'eslint*'
+          - '@eslint*'
+          - 'prettier'
+          - 'typescript'
+          - 'tsup'
+      dev:
+        patterns:
+          - '@types/*'
+          - 'vitest*'
+          - '@vitest*'
+          - 'eslint*'
+          - '@eslint*'
+          - 'prettier'
+          - 'typescript'
+          - 'tsup'
+    ignore:
+      - dependency-name: typescript
+        update-types: ['version-update:semver-patch']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    labels:
+      - dependencies
+      - ci

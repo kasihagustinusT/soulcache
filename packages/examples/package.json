@@ -1,0 +1,18 @@
+{
+  "name": "@soulcache/examples",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Example projects demonstrating SoulCache usage",
+  "type": "module",
+  "scripts": {
+    "lint": "echo 'No lint configured'"
+  },
+  "dependencies": {
+    "@soulcache/core": "workspace:*",
+    "@soulcache/react": "workspace:*",
+    "@soulcache/devtools": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

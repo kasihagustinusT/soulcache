@@ -1,0 +1,73 @@
+---
+title: Installation
+description: Install SoulCache in your project
+---
+
+## Installation
+
+Install SoulCache using your preferred package manager:
+
+```bash
+npm install @soulcache/core
+```
+
+```bash
+yarn add @soulcache/core
+```
+
+```bash
+pnpm add @soulcache/core
+```
+
+## Peer Dependencies
+
+<Note type="info" title="Zero Runtime Dependencies">
+SoulCache has zero runtime dependencies. You only need:
+- `typescript` >= 4.7
+- `react` >= 18.0 (if using React adapter)
+</Note>
+
+## Framework Adapters
+
+For React applications, install the React adapter:
+
+```bash
+npm install @soulcache/react
+```
+
+## TypeScript Configuration
+
+Add SoulCache to your `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "jsx": "preserve",
+    "strict": true
+  }
+}
+```
+
+## Next Steps
+
+<FeatureGrid columns={3}>
+  <FeatureCard
+    title="Quick Start"
+    description="Get up and running in 5 minutes"
+    href="/docs/quick-start"
+  />
+  <FeatureCard
+    title="Core Concepts"
+    description="Understand how SoulCache works"
+    href="/docs/architecture"
+  />
+  <FeatureCard
+    title="React Adapter"
+    description="Learn about React integration"
+    href="/docs/react-adapter"
+  />
+</FeatureGrid>

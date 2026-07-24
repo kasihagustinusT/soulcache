@@ -1,0 +1,139 @@
+---
+title: Mutation
+description: Learn about SoulCache's mutation system for data modifications
+---
+
+## Mutation System
+
+The Mutation System handles data modifications with automatic cache invalidation and optimistic updates.
+
+### Core Concepts
+
+Mutations are operations that modify data on the server:
+
+- Create
+- Update
+- Delete
+- Any side-effect operation
+
+### Usage
+
+#### Basic Mutation
+
+```typescript
+const result = await client.mutate({
+  mutationFn: async (variables) => {
+    const response = await fetch('/api/users', {
+      method: 'POST',
+      body: JSON.stringify(variables),
+    });
+    return response.json();
+  },
+  variables: { name: 'John' },
+});
+```
+
+#### With Callbacks
+
+```typescript
+const result = await client.mutate({
+  mutationFn: createUser,
+  variables: { name: 'John' },
+  onMutate: async (variables) => {
+    // Optimistic update - return context
+    client.setQueryData(['users'], (old) => [...old, variables]);
+    return { previous: client.getQueryData(['users']) };
+  },
+  onSuccess: (data, variables) => {
+    console.log('User created:', data);
+  },
+  onError: (error, variables) => {
+    console.error('Failed:', error);
+  },
+  onSettled: (data, error, variables) => {
+    // Always runs
+    client.invalidateQueries(['users']);
+  },
+});
+```
+
+#### With Retry
+
+```typescript
+const result = await client.mutate({
+  mutationFn: createUser,
+  variables: { name: 'John' },
+  retry: 3,
+  retryDelay: 1000,
+});
+```
+
+### Optimistic Updates
+
+Optimistically update cache before server confirms:
+
+```typescript
+await client.mutate({
+  mutationFn: updateUser,
+  variables: { id: 1, name: 'Jane' },
+  onMutate: async (variables) => {
+    // Snapshot previous value
+    const previous = client.getQueryData(['users']);
+
+    // Optimistically update
+    client.setQueryData(['users'], (old) =>
+      old.map(user => user.id === variables.id ? { ...user, ...variables } : user)
+    );
+
+    // Return context with snapshot
+    return { previous };
+  },
+  onError: (err, variables, context) => {
+    // Rollback on error
+    client.setQueryData(['users'], context.previous);
+  },
+  onSettled: () => {
+    // Refetch after error or success
+    client.invalidateQueries(['users']);
+  },
+});
+```
+
+### Mutation States
+
+Mutations go through these states:
+
+| State | Description |
+|-------|-------------|
+| `idle` | Not active |
+| `pending` | Currently executing |
+| `success` | Completed successfully |
+| `error` | Failed |
+
+### MutationCache
+
+Access the mutation cache directly:
+
+```typescript
+const mutationCache = client.getMutationCache();
+
+// Find mutations by status
+const pendingMutations = mutationCache.findAll({ status: 'pending' });
+
+// Clear all mutations
+mutationCache.clear();
+```
+
+### Best Practices
+
+<Note type="tip" title="Mutation Guidelines">
+- **Always invalidate related queries** — Keep cache consistent
+- **Use optimistic updates carefully** — Rollback on errors
+- **Handle loading states** — Show feedback to users
+- **Clean up side effects** — Use onSettled for cleanup
+</Note>
+
+### Related
+
+- [Query System](/docs/query-system)
+- [Cache System](/docs/cache-system)

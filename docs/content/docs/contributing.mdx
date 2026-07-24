@@ -1,0 +1,105 @@
+---
+title: Contributing
+description: How to contribute to SoulCache
+---
+
+We welcome contributions to SoulCache!
+
+### Getting Started
+
+<Steps>
+  <Step title="Fork and Clone">
+    Fork the repository on GitHub, then clone your fork:
+    ```bash
+    git clone https://github.com/your-username/soulcache.git
+    cd soulcache
+    ```
+  </Step>
+  <Step title="Install Dependencies">
+    ```bash
+    pnpm install
+    ```
+  </Step>
+  <Step title="Create a Branch">
+    ```bash
+    git checkout -b feature/my-feature
+    ```
+  </Step>
+  <Step title="Make Changes and Test">
+    Make your changes, then run the test suite:
+    ```bash
+    pnpm test
+    ```
+  </Step>
+  <Step title="Commit and Push">
+    ```bash
+    git commit -m "feat: add my feature"
+    git push origin feature/my-feature
+    ```
+  </Step>
+  <Step title="Create a Pull Request">
+    Open a pull request on GitHub with a clear description of your changes.
+  </Step>
+</Steps>
+
+### Development
+
+#### Project Structure
+
+<FileTree title="Repository Structure">
+  <FileTreeDir name="soulcache" />
+  <FileTreeDir name="packages" indent={1} />
+  <FileTreeFile name="core/" indent={2} desc="Core runtime" />
+  <FileTreeFile name="react/" indent={2} desc="React bindings" />
+  <FileTreeFile name="devtools-core/" indent={2} desc="DevTools core" />
+  <FileTreeFile name="devtools/" indent={2} desc="DevTools React panel" />
+  <FileTreeFile name="examples/" indent={2} desc="Example projects" />
+  <FileTreeDir name="docs" indent={1} desc="Documentation site" />
+  <FileTreeDir name="scripts" indent={1} desc="Validation scripts" />
+  <FileTreeDir name="TEAM-DEV-AI" indent={1} desc="Engineering specs" />
+</FileTree>
+
+#### Scripts
+
+<TerminalBlock title="Available Scripts">
+{`# Run tests
+pnpm test
+
+# Run tests in watch mode
+pnpm test:watch
+
+# Run benchmarks
+pnpm benchmark
+
+# Build packages
+pnpm build
+
+# Lint code
+pnpm lint
+
+# Type check
+pnpm typecheck`}
+</TerminalBlock>
+
+### Code Style
+
+<Note type="info" title="Coding Standards">
+- Use TypeScript with strict mode
+- Follow existing patterns in the codebase
+- Write tests for new features
+- Update documentation for API changes
+</Note>
+
+### Pull Request Guidelines
+
+<Note type="tip" title="PR Checklist">
+- Write clear, descriptive commit messages
+- Include tests for new features
+- Update documentation as needed
+- Follow existing code style and conventions
+</Note>
+
+### Related
+
+- [Security](/docs/security)
+- [Release Notes](/docs/release-notes)

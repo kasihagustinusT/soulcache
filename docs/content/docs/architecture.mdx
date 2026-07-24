@@ -1,0 +1,160 @@
+---
+title: Architecture
+description: Understand how SoulCache is designed and built
+---
+
+## Architecture
+
+SoulCache is designed with a modular, layered architecture that separates concerns while maintaining high performance.
+
+### High-Level Overview
+
+<ArchitectureDiagram title="System Architecture">
+  <ArchRow>
+    <ArchBox highlight>Application Layer</ArchBox>
+  </ArchRow>
+  <ArchRow>
+    <ArchConnector><svg className="h-4 w-4 rotate-90" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg></ArchConnector>
+  </ArchRow>
+  <ArchRow>
+    <ArchBox accent>Framework Adapters (React, Vue, Solid, Svelte)</ArchBox>
+  </ArchRow>
+  <ArchRow>
+    <ArchConnector><svg className="h-4 w-4 rotate-90" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg></ArchConnector>
+  </ArchRow>
+  <ArchRow>
+    <ArchBox highlight>Core Runtime</ArchBox>
+  </ArchRow>
+  <ArchRow>
+    <ArchConnector><svg className="h-4 w-4 rotate-90" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg></ArchConnector>
+  </ArchRow>
+  <ArchRow>
+    <ArchBox>Query Engine</ArchBox>
+    <ArchBox>Cache Engine</ArchBox>
+    <ArchBox>Observer Manager</ArchBox>
+  </ArchRow>
+  <ArchRow>
+    <ArchBox>Retry Engine</ArchBox>
+    <ArchBox>Scheduler</ArchBox>
+    <ArchBox>Plugin System</ArchBox>
+  </ArchRow>
+  <ArchRow>
+    <ArchConnector><svg className="h-4 w-4 rotate-90" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg></ArchConnector>
+  </ArchRow>
+  <ArchRow>
+    <ArchBox>Storage Layer (Memory, IndexedDB, LocalStorage)</ArchBox>
+  </ArchRow>
+</ArchitectureDiagram>
+
+### Core Components
+
+#### Query Engine
+
+The Query Engine orchestrates the complete lifecycle of data fetching:
+
+- Request deduplication
+- Automatic retry with backoff
+- Cache coordination
+- Observer notifications
+- Background refetching
+
+#### Cache Engine
+
+The Cache Engine provides intelligent caching:
+
+- In-memory storage with O(1) lookups
+- Automatic garbage collection
+- Stale-while-revalidate patterns
+- Version conflict detection
+- Dependency tracking
+
+#### Observer Manager
+
+The Observer Manager coordinates subscriptions:
+
+- Multi-query subscriptions
+- Batch notifications
+- Lifecycle management
+- Memory-safe cleanup
+
+#### Retry Engine
+
+The Retry Engine handles failure recovery:
+
+- Exponential backoff
+- Linear backoff
+- Custom retry strategies
+- Error classification
+- Circuit breaker patterns
+
+#### Scheduler
+
+The Scheduler manages task execution:
+
+- Priority-based scheduling
+- Task batching
+- Microtask optimization
+- Concurrency control
+
+### Data Flow
+
+<FlowDiagram title="Data Flow">
+  <FlowNode>User Code</FlowNode>
+  <FlowArrow />
+  <FlowNode>Query Client</FlowNode>
+  <FlowArrow />
+  <FlowNode highlight>Query Engine</FlowNode>
+  <FlowArrow />
+  <FlowNode>Cache Engine</FlowNode>
+  <FlowArrow />
+  <FlowNode>Subscribers</FlowNode>
+</FlowDiagram>
+
+### Design Principles
+
+#### Separation of Concerns
+
+Each module has a single responsibility:
+- Cache Engine: Storage only
+- Query Engine: Orchestration only
+- Observer Manager: Subscriptions only
+
+#### Zero Runtime Dependencies
+
+SoulCache has no runtime dependencies. All functionality is built from scratch for:
+- Minimal bundle size
+- No supply chain risks
+- Full control over behavior
+
+#### Framework Independence
+
+The core runtime is framework-agnostic. Framework adapters provide:
+- React hooks
+- Vue composables
+- Svelte stores
+- Solid signals
+
+#### Type Safety
+
+End-to-end TypeScript with:
+- Strict mode enabled
+- No `any` types in source
+- Full inference support
+- Comprehensive type exports
+
+### Performance Characteristics
+
+| Operation | Time Complexity | Space Complexity |
+|-----------|-----------------|------------------|
+| Cache Get | O(1) | O(1) |
+| Cache Set | O(1) | O(1) |
+| Observer Notify | O(n) | O(1) |
+| Query Dedup | O(1) | O(1) |
+| Retry Check | O(1) | O(1) |
+
+### Related
+
+- [Query System](/docs/query-system)
+- [Cache System](/docs/cache-system)
+- [Observer](/docs/observer)
+- [QueryClient API Reference](/docs/query-client)

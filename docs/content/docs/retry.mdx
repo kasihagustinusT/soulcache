@@ -1,0 +1,77 @@
+---
+title: Retry
+description: Learn about SoulCache's retry system with automatic backoff
+---
+
+## Retry System
+
+The Retry System handles failed operations with intelligent retry strategies.
+
+### Core Concepts
+
+#### Error Classification
+
+Errors are classified into categories:
+
+| Class | Description |
+|-------|-------------|
+| `network` | Connection failures |
+| `timeout` | Request timeouts |
+| `server` | 5xx errors |
+| `client` | 4xx errors |
+| `abort` | Cancelled requests |
+| `unknown` | Unclassified errors |
+
+#### Backoff Strategies
+
+| Strategy | Behavior |
+|----------|----------|
+| `exponential` | Delay doubles each attempt |
+| `linear` | Delay increases linearly |
+| `constant` | Fixed delay |
+
+### Usage
+
+#### Configure Retry Count
+
+```typescript
+import { QueryClient } from '@soulcache/core';
+
+const client = new QueryClient({
+  defaultOptions: {
+    retry: 3,
+  },
+});
+```
+
+#### Automatic Retry
+
+SoulCache automatically retries failed requests up to the configured limit:
+
+```typescript
+// Automatically retries up to 3 times (default)
+const data = await client.fetchQuery({
+  queryKey: ['flaky-api'],
+  queryFn: fetchFlakyData,
+});
+```
+
+#### Jitter
+
+Jitter is enabled by default to prevent thundering herd. It adds 0-50% random delay to retry timing.
+
+### Best Practices
+
+<Note type="tip" title="Retry Guidelines">
+- **Classify errors correctly** — Different errors need different strategies
+- **Use exponential backoff** — Prevents overwhelming the server
+- **Add jitter** — Prevents thundering herd
+- **Set reasonable retries** — Don't retry forever
+- **Handle final failure** — Always handle exhausted retries
+</Note>
+
+### Related
+
+- [RetryEngine (Internal)](/docs/retry-engine)
+- [Query System](/docs/query-system)
+- [Architecture](/docs/architecture)

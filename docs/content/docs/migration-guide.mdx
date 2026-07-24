@@ -1,0 +1,106 @@
+---
+title: Migration Guide
+description: Migrate from other libraries to SoulCache
+---
+
+## Migration Guide
+
+This guide helps you migrate from other data fetching libraries to SoulCache.
+
+### From React Query
+
+#### Setup
+
+```typescript
+// Before (React Query)
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+// After (SoulCache)
+import { SoulCacheProvider } from '@soulcache/react';
+```
+
+#### Hooks
+
+```typescript
+// Before (React Query)
+import { useQuery } from '@tanstack/react-query';
+
+// After (SoulCache)
+import { useQuery } from '@soulcache/react';
+```
+
+#### Query Options
+
+```typescript
+// Before (React Query)
+const { data } = useQuery({
+  queryKey: ['users'],
+  queryFn: fetchUsers,
+  staleTime: 5 * 60 * 1000,
+  retry: 3,
+});
+
+// After (SoulCache) — configure via QueryClient
+const client = new QueryClient({
+  defaultOptions: {
+    staleTime: 5 * 60 * 1000,
+    retry: 3,
+  },
+});
+
+const { data } = useQuery({
+  queryKey: ['users'],
+  queryFn: fetchUsers,
+});
+```
+
+### From SWR
+
+#### Setup
+
+```typescript
+// Before (SWR)
+import useSWR from 'swr';
+
+// After (SoulCache)
+import { useQuery } from '@soulcache/react';
+```
+
+#### Fetcher
+
+```typescript
+// Before (SWR)
+const { data } = useSWR('/api/users', fetcher);
+
+// After (SoulCache)
+const { data } = useQuery({
+  queryKey: ['users'],
+  queryFn: () => fetch('/api/users').then(r => r.json()),
+});
+```
+
+### Key Differences
+
+| Feature | React Query | SWR | SoulCache |
+|---------|-------------|-----|-----------|
+| Runtime deps | 0 | 0 | 0 |
+| Bundle size | ~12KB | ~4KB | ~8KB |
+| TypeScript | Good | Good | Excellent |
+| Plugin system | Yes | No | Yes |
+| DevTools | Yes | No | Yes |
+
+### Migration Checklist
+
+<Note type="info" title="Migration Steps">
+- Install `@soulcache/core` and `@soulcache/react`
+- Replace QueryClient imports
+- Replace hook imports
+- Update query options
+- Test all queries
+- Update DevTools
+</Note>
+
+### Related
+
+- [Installation](/docs/installation)
+- [Quick Start](/docs/quick-start)

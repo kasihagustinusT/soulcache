@@ -1,0 +1,75 @@
+---
+title: Observer
+description: Learn about SoulCache's observer system for reactive updates
+---
+
+## Observer System
+
+The Observer System manages subscriptions and reactive updates.
+
+### Usage
+
+#### Subscribing to Queries
+
+Use `QueryClient.subscribe()` to observe query updates:
+
+```typescript
+import { QueryClient } from '@soulcache/core';
+
+const client = new QueryClient();
+
+// Subscribe to a query
+const unsubscribe = client.subscribe(['users'], (snapshot) => {
+  console.log(snapshot.data);
+  console.log(snapshot.status);
+});
+
+// Cleanup when done
+unsubscribe();
+```
+
+#### Multiple Queries
+
+Subscribe to multiple query keys:
+
+```typescript
+const unsub1 = client.subscribe(['users'], handleUsers);
+const unsub2 = client.subscribe(['posts'], handlePosts);
+
+// Cleanup all
+unsub1();
+unsub2();
+```
+
+### Features
+
+#### Automatic Deduplication
+
+Multiple subscribers for the same key share updates:
+
+```typescript
+const unsub1 = client.subscribe(['users'], handleUsers);
+const unsub2 = client.subscribe(['users'], handlePosts);
+// Both get notified with a single update
+```
+
+#### Batching
+
+Updates are batched automatically. Multiple synchronous cache updates result in a single notification per subscriber.
+
+#### Equality Checking
+
+Subscribers are only notified when data actually changes, preventing unnecessary re-renders.
+
+### Best Practices
+
+<Note type="tip" title="Observer Guidelines">
+- **Always unsubscribe** — Prevent memory leaks
+- **Use stable keys** — Don't create new arrays in render
+- **Monitor observer count** — Detect memory leaks early
+</Note>
+
+### Related
+
+- [Query System](/docs/query-system)
+- [Architecture](/docs/architecture)

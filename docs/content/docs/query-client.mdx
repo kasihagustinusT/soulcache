@@ -1,0 +1,168 @@
+---
+title: QueryClient
+description: API Reference for the QueryClient class
+---
+
+## QueryClient
+
+The primary interface for interacting with SoulCache.
+
+### Import
+
+```typescript
+import { QueryClient } from '@soulcache/core';
+```
+
+### Constructor
+
+```typescript
+new QueryClient(config?: QueryClientConfig)
+```
+
+#### Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `config.defaultOptions.staleTime` | `number` | `300000` (5 min) | Time before data is stale |
+| `config.defaultOptions.gcTime` | `number` | `1800000` (30 min) | Time before garbage collection |
+| `config.defaultOptions.retry` | `number` | `3` | Default retry count |
+| `config.logger` | `Logger` | `console` | Custom logger |
+
+### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `isDestroyed` | `boolean` | Whether client is destroyed |
+| `queryCount` | `number` | Number of active queries |
+
+### Methods
+
+#### `fetchQuery<T>(options)`
+
+Fetch data with automatic caching and deduplication.
+
+```typescript
+fetchQuery<T>(options: {
+  queryKey: QueryKey;
+  queryFn: () => Promise<T>;
+}): Promise<T>
+```
+
+#### `getQueryData<T>(queryKey)`
+
+Read cached data.
+
+```typescript
+getQueryData<T>(queryKey: QueryKey): T | undefined
+```
+
+#### `getQuerySnapshot<T>(queryKey)`
+
+Get the current snapshot for a query (compatible with `useSyncExternalStore`).
+
+```typescript
+getQuerySnapshot<T>(queryKey: QueryKey): QuerySnapshot<T> | undefined
+```
+
+#### `setQueryData<T>(queryKey, updater)`
+
+Manually update cache.
+
+```typescript
+setQueryData<T>(queryKey: QueryKey, updater: Updater<T>): void
+```
+
+#### `subscribe<T>(queryKey, callback)`
+
+Subscribe to query updates. Returns an unsubscribe function.
+
+```typescript
+subscribe<T>(queryKey: QueryKey, callback: (snapshot: QuerySnapshot<T>) => void): () => void
+```
+
+#### `subscribeToQuery(queryKey, listener)`
+
+Subscribe to query state changes. Compatible with `useSyncExternalStore`.
+
+```typescript
+subscribeToQuery(queryKey: QueryKey, listener: () => void): () => void
+```
+
+#### `mutate<TData, TVariables>(options)`
+
+Execute a mutation.
+
+```typescript
+mutate<TData, TVariables = void>(options: {
+  mutationId?: string;
+  mutationFn: (variables: TVariables) => Promise<TData>;
+  variables: TVariables;
+  onMutate?: (variables: TVariables) => unknown;
+  onSuccess?: (data: TData, variables: TVariables) => void;
+  onError?: (error: Error, variables: TVariables) => void;
+  onSettled?: (data: TData | undefined, error: Error | null, variables: TVariables) => void;
+  retry?: number;
+  retryDelay?: number;
+}): Promise<TData>
+```
+
+#### `invalidateQueries(queryKey)`
+
+Invalidate cache entries by prefix.
+
+```typescript
+invalidateQueries(queryKey: QueryKey): Promise<void>
+```
+
+#### `removeQuery(queryKey)`
+
+Remove a query entry.
+
+```typescript
+removeQuery(queryKey: QueryKey): void
+```
+
+#### `clear()`
+
+Clear all cache entries.
+
+```typescript
+clear(): void
+```
+
+#### `destroy()`
+
+Destroy client and cleanup resources.
+
+```typescript
+destroy(): void
+```
+
+#### `getCache()`
+
+Access the underlying CacheEngine instance.
+
+```typescript
+getCache(): CacheEngine
+```
+
+#### `getMutationCache()`
+
+Access the underlying MutationCache instance.
+
+```typescript
+getMutationCache(): MutationCache
+```
+
+#### `getScheduler()`
+
+Access the underlying Scheduler instance.
+
+```typescript
+getScheduler(): Scheduler
+```
+
+### Related
+
+- [Cache System](/docs/cache-system)
+- [Query System](/docs/query-system)

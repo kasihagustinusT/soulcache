@@ -1,0 +1,84 @@
+---
+title: FAQ
+description: Frequently asked questions about SoulCache
+---
+
+## Frequently Asked Questions
+
+### General
+
+#### What is SoulCache?
+
+SoulCache is a universal data fetching and caching runtime for modern applications. It provides automatic caching, background refetching, and optimistic updates.
+
+#### Is SoulCache production-ready?
+
+Yes. SoulCache is designed for production use with zero runtime dependencies, full TypeScript support, and comprehensive testing.
+
+#### Does SoulCache have runtime dependencies?
+
+No. SoulCache has zero runtime dependencies. All functionality is built from scratch.
+
+### Installation
+
+#### What Node.js version is required?
+
+SoulCache requires Node.js 16 or higher.
+
+#### Does SoulCache work with React?
+
+Yes. SoulCache provides a React adapter with hooks and components.
+
+### Usage
+
+#### How do I cache data?
+
+SoulCache automatically caches data. Just use `fetchQuery`:
+
+```typescript
+const data = await client.fetchQuery({
+  queryKey: ['users'],
+  queryFn: fetchUsers,
+});
+```
+
+#### How do I invalidate cache?
+
+```typescript
+await client.invalidateQueries(['users']);
+```
+
+#### How do I update cache optimistically?
+
+```typescript
+client.setQueryData(['users'], (old) => [...old, newUser]);
+```
+
+### Performance
+
+#### How fast is SoulCache?
+
+SoulCache operations are O(1) for cache hits and O(1) for cache writes. Background refetching is automatic and non-blocking.
+
+#### Does SoulCache support offline?
+
+SoulCache supports persistence with storage adapters. For full offline support, use IndexedDB or AsyncStorage.
+
+### Troubleshooting
+
+#### My queries aren't updating
+
+1. Check query keys are stable
+2. Ensure subscriptions are active
+3. Verify cache invalidation
+
+#### Memory leaks
+
+1. Always unsubscribe from queries
+2. Use garbage collection
+3. Monitor observer count
+
+### Related
+
+- [Troubleshooting](/docs/troubleshooting)
+- [Performance](/docs/performance)

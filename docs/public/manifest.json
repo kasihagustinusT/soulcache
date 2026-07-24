@@ -1,0 +1,21 @@
+{
+  "name": "SoulCache",
+  "short_name": "SoulCache",
+  "description": "TypeScript Data Fetching & Caching Runtime for Modern Applications",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0ea5e9",
+  "icons": [
+    {
+      "src": "https://res.cloudinary.com/vaslp5ww/image/upload/f_auto,q_auto,w_192/v1784806314/soulcache-logo_tjwmu7.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://res.cloudinary.com/vaslp5ww/image/upload/f_auto,q_auto,w_512/v1784806314/soulcache-logo_tjwmu7.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

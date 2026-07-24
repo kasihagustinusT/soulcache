@@ -1,0 +1,72 @@
+---
+title: PluginManager
+description: Internal architecture - Plugin lifecycle management
+---
+
+## PluginManager (Internal)
+
+<Note type="info" title="Internal Implementation">
+`PluginManager` is an internal class. Plugins are registered through the QueryClient configuration.
+</Note>
+
+The PluginManager coordinates plugin registration, validation, lifecycle management, and hook execution. It is used internally by the runtime to manage plugin state machines.
+
+### Public Usage
+
+Plugins are registered through the QueryClient configuration:
+
+```typescript
+import type { Plugin, PluginContext } from '@soulcache/core';
+
+const myPlugin: Plugin = {
+  metadata: {
+    id: 'logging',
+    name: 'Logging Plugin',
+    version: '1.0.0',
+  },
+  onAfterInit: (ctx: PluginContext) => {
+    ctx.log('info', 'Plugin initialized');
+  },
+  onBeforeQuery: (queryKey: unknown[], ctx: PluginContext) => {
+    ctx.log('info', `Query starting: ${queryKey.join('/')}`);
+  },
+  onAfterQuery: (queryKey: unknown[], ctx: PluginContext) => {
+    ctx.log('info', `Query completed: ${queryKey.join('/')}`);
+  },
+};
+```
+
+### Plugin Lifecycle
+
+Plugins go through well-defined states:
+
+| State | Description |
+|-------|-------------|
+| `discovered` | Plugin found |
+| `validated` | Metadata valid |
+| `registered` | Added to manager |
+| `initialized` | onBeforeInit/onAfterInit called |
+| `active` | Hooks running |
+| `suspended` | Temporarily disabled |
+| `disposed` | Cleaned up |
+
+### Hooks
+
+| Hook | When |
+|------|------|
+| `onBeforeInit` | Before initialization |
+| `onAfterInit` | After initialization |
+| `onBeforeQuery` | Before query execution |
+| `onAfterQuery` | After query completion |
+| `onBeforeMutation` | Before mutation |
+| `onAfterMutation` | After mutation |
+| `onCacheUpdated` | Cache entry updated |
+| `onCacheInvalidated` | Cache entry invalidated |
+| `onSuspend` | Plugin suspended |
+| `onResume` | Plugin resumed |
+| `onDispose` | Plugin disposed |
+
+### Related
+
+- [Plugins](/docs/plugins)
+- [Architecture](/docs/architecture)

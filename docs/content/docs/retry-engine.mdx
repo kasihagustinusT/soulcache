@@ -1,0 +1,61 @@
+---
+title: RetryEngine
+description: Internal architecture - Retry logic and error classification
+---
+
+## RetryEngine (Internal)
+
+<Note type="info" title="Internal Implementation">
+`RetryEngine` is an internal class used by the query runtime. Retry behavior is configured via `QueryClient` default options.
+</Note>
+
+The RetryEngine handles retry logic with error classification, backoff strategies, and configurable retry policies. It is used internally by the query execution pipeline.
+
+### Public Configuration
+
+Configure retry behavior through `QueryClient`:
+
+```typescript
+const client = new QueryClient({
+  defaultOptions: {
+    retry: 3,
+  },
+});
+```
+
+### Retry Concepts
+
+#### Error Classification
+
+Errors are classified into categories:
+
+| Class | Description |
+|-------|-------------|
+| `network` | Connection failures |
+| `timeout` | Request timeouts |
+| `server` | 5xx errors |
+| `client` | 4xx errors |
+| `abort` | Cancelled requests |
+| `unknown` | Unclassified errors |
+
+#### Backoff Strategies
+
+| Strategy | Behavior |
+|----------|----------|
+| `exponential` | Delay doubles each attempt |
+| `linear` | Delay increases linearly |
+| `constant` | Fixed delay |
+
+### Best Practices
+
+<Note type="tip" title="Retry Guidelines">
+- **Use exponential backoff** — Prevents overwhelming the server
+- **Add jitter** — Prevents thundering herd
+- **Set reasonable retries** — Don't retry forever
+- **Handle final failure** — Always handle exhausted retries
+</Note>
+
+### Related
+
+- [Retry](/docs/retry)
+- [Query System](/docs/query-system)

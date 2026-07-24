@@ -1,0 +1,160 @@
+---
+title: CacheEngine
+description: API Reference for the CacheEngine class
+---
+
+## CacheEngine
+
+High-performance cache with automatic garbage collection and dependency tracking.
+
+### Import
+
+```typescript
+import { CacheEngine } from '@soulcache/core';
+```
+
+### Constructor
+
+```typescript
+new CacheEngine(options?: CacheEngineOptions)
+```
+
+#### Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `staleTime` | `number` | `300000` (5 min) | Default stale time |
+| `gcTime` | `number` | `1800000` (30 min) | Garbage collection time |
+| `maxSize` | `number` | `100000` | Maximum cache entries |
+
+### Methods
+
+#### `get<T>(queryKey)`
+
+Get cache entry by key.
+
+```typescript
+get<T = unknown>(queryKey: QueryKey): QueryEntry<T> | undefined
+```
+
+#### `getByHash<T>(keyHash)`
+
+Get cache entry by hash.
+
+```typescript
+getByHash<T = unknown>(keyHash: string): QueryEntry<T> | undefined
+```
+
+#### `set<T>(options)`
+
+Create or update cache entry.
+
+```typescript
+set<T = unknown>(options: {
+  queryKey: QueryKey;
+  data?: T;
+  state?: QueryRecordState;
+  status?: CacheStatus;
+  error?: Error | null;
+  meta?: Record<string, unknown>;
+  dependencies?: string[];
+}): QueryEntry<T>
+```
+
+#### `delete(queryKey)`
+
+Delete cache entry.
+
+```typescript
+delete(queryKey: QueryKey): boolean
+```
+
+#### `invalidate(queryKey)`
+
+Invalidate entry and dependencies.
+
+```typescript
+invalidate(queryKey: QueryKey): boolean
+```
+
+#### `invalidateAll(predicate?)`
+
+Bulk invalidate entries.
+
+```typescript
+invalidateAll(predicate?: (key: string, entry: QueryEntry) => boolean): number
+```
+
+#### `clear()`
+
+Clear all entries.
+
+```typescript
+clear(): void
+```
+
+#### `collectGarbage()`
+
+Remove expired entries.
+
+```typescript
+collectGarbage(): number
+```
+
+#### `has(queryKey)`
+
+Check if entry exists.
+
+```typescript
+has(queryKey: QueryKey): boolean
+```
+
+#### `entries()`
+
+Get all cache entries.
+
+```typescript
+entries(): QueryEntry[]
+```
+
+#### `getStats()`
+
+Get cache statistics.
+
+```typescript
+getStats(): CacheStats
+```
+
+### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `size` | `number` | Number of entries |
+
+### Types
+
+#### `CacheEngineOptions`
+
+```typescript
+interface CacheEngineOptions {
+  staleTime?: number;
+  gcTime?: number;
+  maxSize?: number;
+}
+```
+
+#### `CacheStats`
+
+```typescript
+interface CacheStats {
+  size: number;
+  activeEntries: number;
+  gcEligibleEntries: number;
+  totalAccesses: number;
+}
+```
+
+### Related
+
+- [Cache System](/docs/cache-system)
+- [QueryClient](/docs/query-client)

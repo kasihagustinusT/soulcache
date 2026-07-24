@@ -1,0 +1,76 @@
+{
+  "name": "@soulcache/react",
+  "version": "1.0.0",
+  "description": "SoulCache React bindings - Thin adapter layer for React",
+  "license": "MIT",
+  "author": "Kasih Agustinus <kasihagustinus@users.noreply.github.com>",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "keywords": [
+    "soulcache",
+    "react",
+    "data-fetching",
+    "caching",
+    "hooks",
+    "typescript"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kasihagustinusT/soulcache.git",
+    "directory": "packages/react"
+  },
+  "homepage": "https://soulcache.vercel.app",
+  "bugs": {
+    "url": "https://github.com/kasihagustinusT/soulcache/issues"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "clean": "rm -rf dist node_modules"
+  },
+  "devDependencies": {
+    "@soulcache/core": "workspace:*",
+    "@types/react": "^18.3.0",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/jest-dom": "^6.0.0",
+    "jsdom": "^25.0.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
+  },
+  "peerDependencies": {
+    "@soulcache/core": "workspace:*",
+    "react": ">=18.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/kasihagustinusT"
+  }
+}

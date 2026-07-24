@@ -1,0 +1,161 @@
+---
+title: Troubleshooting
+description: Common issues and solutions
+---
+
+## Troubleshooting
+
+### Queries Not Updating
+
+**Symptom:** Query data doesn't update when expected.
+
+**Solutions:**
+
+1. Check query key stability:
+```typescript
+// Bad: Creates new array each render
+useQuery({ queryKey: [userId], queryFn });
+
+// Good: Stable reference
+const queryKey = useMemo(() => [userId], [userId]);
+useQuery({ queryKey, queryFn });
+```
+
+2. Verify cache invalidation:
+```typescript
+await client.invalidateQueries(['users']);
+```
+
+3. Check observer subscription:
+```typescript
+const unsubscribe = client.subscribe(['users'], callback);
+// Don't forget to unsubscribe
+```
+
+### Memory Leaks
+
+**Symptom:** Application memory grows over time.
+
+**Solutions:**
+
+1. Unsubscribe from queries:
+```typescript
+useEffect(() => {
+  const unsubscribe = client.subscribe(['users'], callback);
+  return unsubscribe;
+}, []);
+```
+
+2. Enable garbage collection:
+```typescript
+const client = new QueryClient({
+  defaultOptions: {
+    gcTime: 5 * 60 * 1000, // 5 minutes
+  },
+});
+```
+
+3. Monitor observer count:
+```typescript
+const stats = client.getCache().getStats();
+console.log('Active entries:', stats.activeEntries);
+```
+
+### Network Errors
+
+**Symptom:** Fetch requests fail repeatedly.
+
+**Solutions:**
+
+1. Check retry configuration:
+```typescript
+// Configure retry globally on the client
+const client = new QueryClient({
+  defaultOptions: {
+    retry: 3,
+  },
+});
+```
+
+2. Implement error handling:
+```typescript
+try {
+  const data = await client.fetchQuery({
+    queryKey: ['users'],
+    queryFn: fetchUsers,
+  });
+} catch (error) {
+  console.error('Fetch failed:', error);
+}
+```
+
+3. Use error boundaries in React:
+```tsx
+<ErrorBoundary fallback={<Error />}>
+  <Users />
+</ErrorBoundary>
+```
+
+### Type Errors
+
+**Symptom:** TypeScript compilation errors.
+
+**Solutions:**
+
+1. Ensure query keys are typed:
+```typescript
+const queryKey = ['users'] as const;
+```
+
+2. Use generic types:
+```typescript
+const data = await client.fetchQuery<User[]>({
+  queryKey: ['users'],
+  queryFn: fetchUsers,
+});
+```
+
+3. Check import paths:
+```typescript
+// Good
+import { QueryClient } from '@soulcache/core';
+import { useQuery } from '@soulcache/react';
+
+// Bad: Don't import from internal paths
+```
+
+### Performance Issues
+
+**Symptom:** Application feels slow.
+
+**Solutions:**
+
+1. Increase stale time:
+```typescript
+const client = new QueryClient({
+  defaultOptions: {
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  },
+});
+```
+
+2. Use background refetching:
+```typescript
+// staleTime is configured on the QueryClient, not per-query
+const client = new QueryClient({
+  defaultOptions: {
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  },
+});
+```
+
+3. Monitor metrics:
+```typescript
+const metrics = client.getScheduler().getMetrics();
+console.log('Tasks completed:', metrics.totalCompleted);
+```
+
+### Related
+
+- [FAQ](/docs/faq)
+- [Performance](/docs/performance)

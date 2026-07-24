@@ -1,0 +1,203 @@
+---
+title: Infinite Query
+description: Learn about SoulCache's infinite query for paginated data
+---
+
+## Infinite Query
+
+Infinite queries handle paginated data fetching with automatic cursor management.
+
+### Import
+
+```typescript
+import { InfiniteQuery } from '@soulcache/core';
+```
+
+### Constructor
+
+```typescript
+new InfiniteQuery<TData, TPageParam>(options: InfiniteQueryOptions<TData, TPageParam>)
+```
+
+### Types
+
+#### `InfiniteQueryOptions<TData, TPageParam>`
+
+```typescript
+interface InfiniteQueryOptions<TData, TPageParam> {
+  readonly queryKey: QueryKey;
+  readonly queryFn: (context: { pageParam: TPageParam; signal?: AbortSignal }) => Promise<TData>;
+  readonly initialPageParam?: TPageParam;       // default: 0
+  readonly getNextPageParam: (
+    lastPage: TData, allPages: TData[],
+    lastPageParam: unknown, allPageParams: unknown[],
+  ) => TPageParam | undefined;
+  readonly getPreviousPageParam?: (
+    firstPage: TData, allPages: TData[],
+    firstPageParam: unknown, allPageParams: unknown[],
+  ) => TPageParam | undefined;
+  readonly enabled?: boolean;
+  readonly staleTime?: number;
+  readonly gcTime?: number;
+  readonly maxPages?: number;                   // default: Infinity
+}
+```
+
+#### `InfiniteQueryState<TData>`
+
+```typescript
+interface InfiniteQueryState<TData> {
+  readonly pages: InfiniteQueryPage<TData>[];
+  readonly pageParams: unknown[];
+  readonly hasNextPage: boolean;
+  readonly hasPreviousPage: boolean;
+  readonly isFetchingNextPage: boolean;
+  readonly isFetchingPreviousPage: boolean;
+  readonly error: Error | null;
+}
+```
+
+#### `InfiniteQueryPage<TData>`
+
+```typescript
+interface InfiniteQueryPage<TData> {
+  readonly data: TData;
+  readonly pageParam: unknown;
+  readonly pageIndex: number;
+}
+```
+
+### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `id` | `string` | Unique query ID |
+| `queryKey` | `readonly unknown[]` | Query cache key |
+| `data` | `TData[]` | Flat array of all page data |
+| `hasNextPage` | `boolean` | Whether next page is available |
+| `hasPreviousPage` | `boolean` | Whether previous page is available |
+| `isFetchingNextPage` | `boolean` | Whether next page is fetching |
+| `isFetchingPreviousPage` | `boolean` | Whether previous page is fetching |
+| `pageCount` | `number` | Number of loaded pages |
+| `isDestroyed` | `boolean` | Whether query is destroyed |
+
+### Methods
+
+#### `fetch()`
+
+Fetch all pages.
+
+```typescript
+fetch(): Promise<void>
+```
+
+#### `fetchNextPage()`
+
+Fetch the next page. Returns `true` if a new page was fetched.
+
+```typescript
+fetchNextPage(): Promise<boolean>
+```
+
+#### `fetchPreviousPage()`
+
+Fetch the previous page. Returns `true` if a new page was fetched.
+
+```typescript
+fetchPreviousPage(): Promise<boolean>
+```
+
+#### `subscribe(listener)`
+
+Subscribe to state changes.
+
+```typescript
+subscribe(listener: () => void): () => void
+```
+
+#### `cancel()`
+
+Cancel any in-flight fetch.
+
+```typescript
+cancel(): void
+```
+
+#### `reset()`
+
+Reset to initial state.
+
+```typescript
+reset(): void
+```
+
+#### `destroy()`
+
+Destroy the query and cleanup resources.
+
+```typescript
+destroy(): void
+```
+
+### Usage
+
+```typescript
+import { InfiniteQuery } from '@soulcache/core';
+
+const query = new InfiniteQuery({
+  queryKey: ['posts'],
+  queryFn: async ({ pageParam }) => {
+    const response = await fetch(`/api/posts?page=${pageParam}`);
+    return response.json();
+  },
+  getNextPageParam: (lastPage) => lastPage.nextCursor,
+  getPreviousPageParam: (firstPage) => firstPage.prevCursor,
+});
+
+// Fetch first page
+await query.fetch();
+
+// Fetch next page
+const hasNext = await query.fetchNextPage();
+
+// Subscribe to updates
+const unsubscribe = query.subscribe(() => {
+  console.log(query.data);
+  console.log(query.hasNextPage);
+});
+```
+
+### Features
+
+<FeatureGrid columns={2}>
+  <FeatureCard
+    title="Automatic Cursor Management"
+    description="Cursor tracking is handled automatically between pages"
+  />
+  <FeatureCard
+    title="Bidirectional Pagination"
+    description="Support for both forward and backward pagination"
+  />
+  <FeatureCard
+    title="Background Refetching"
+    description="Pages are refreshed in the background to stay current"
+  />
+  <FeatureCard
+    title="Max Pages Limit"
+    description="Control memory usage by limiting number of kept pages"
+  />
+</FeatureGrid>
+
+### Best Practices
+
+<Note type="tip" title="Infinite Query Guidelines">
+- **Use stable cursors** — Ensure consistent pagination across refetches
+- **Handle loading states** — Show feedback during page fetches
+- **Implement error boundaries** — Handle fetch failures gracefully
+- **Limit pages** — Use maxPages to control memory usage
+</Note>
+
+### Related
+
+- [Query System](/docs/query-system)
+- [Cache System](/docs/cache-system)

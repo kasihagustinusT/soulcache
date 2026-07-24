@@ -1,0 +1,91 @@
+---
+title: Storage
+description: Learn about SoulCache's storage adapters for persistence
+---
+
+## Storage
+
+Storage adapters persist cache data across sessions via the `StorageManager`.
+
+### StorageAdapter Interface
+
+All storage adapters must implement this interface:
+
+```typescript
+interface StorageAdapter {
+  readonly name: string;
+
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string): Promise<void>;
+  delete(key: string): Promise<void>;
+  clear(): Promise<void>;
+  has(key: string): Promise<boolean>;
+
+  keys(): Promise<string[]>;
+  getSize(): Promise<number>;
+  getUsage(): Promise<StorageUsage>;
+
+  initialize(): Promise<void>;
+  dispose(): Promise<void>;
+  isReady(): boolean;
+}
+```
+
+### Usage
+
+```typescript
+import { StorageManager, createMemoryAdapter } from '@soulcache/core';
+
+const storage = new StorageManager({
+  adapter: createMemoryAdapter(),
+  prefix: 'soulcache',
+  debounceMs: 300,
+});
+
+await storage.initialize();
+```
+
+### Built-in Adapters
+
+| Adapter | Description |
+|---------|-------------|
+| `MemoryAdapter` | Default in-memory storage |
+| LocalStorage | Browser local storage |
+| SessionStorage | Browser session storage |
+| IndexedDB | Browser IndexedDB |
+| AsyncStorage | React Native AsyncStorage |
+
+### Features
+
+<FeatureGrid columns={2}>
+  <FeatureCard
+    title="Pluggable Backends"
+    description="Swap storage adapters without changing application code"
+  />
+  <FeatureCard
+    title="Automatic Serialization"
+    description="Data is automatically serialized/deserialized for storage"
+  />
+  <FeatureCard
+    title="Error Handling"
+    description="Graceful fallback when storage is unavailable"
+  />
+  <FeatureCard
+    title="Quota Management"
+    description="Automatic monitoring and management of storage limits"
+  />
+</FeatureGrid>
+
+### Best Practices
+
+<Note type="tip" title="Storage Guidelines">
+- **Choose the right adapter** — Consider performance and persistence needs
+- **Handle errors** — Storage may be unavailable in some environments
+- **Monitor quota** — Avoid exceeding storage limits
+- **Use compression** — For large datasets
+</Note>
+
+### Related
+
+- [Cache System](/docs/cache-system)
+- [Architecture](/docs/architecture)

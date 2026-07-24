@@ -1,0 +1,71 @@
+{
+  "name": "@soulcache/devtools-core",
+  "version": "1.0.0",
+  "description": "Framework-agnostic inspection and diagnostics layer for SoulCache DevTools",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kasihagustinusT/soulcache.git",
+    "directory": "packages/devtools-core"
+  },
+  "homepage": "https://soulcache.vercel.app",
+  "bugs": {
+    "url": "https://github.com/kasihagustinusT/soulcache/issues"
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/kasihagustinusT"
+  },
+  "keywords": [
+    "soulcache",
+    "devtools",
+    "inspector",
+    "diagnostics",
+    "debug",
+    "cache",
+    "query",
+    "typescript"
+  ],
+  "license": "MIT",
+  "author": "Kasih Agustinus <kasihagustinus@users.noreply.github.com>",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@soulcache/core": "workspace:*",
+    "typescript": "^5.4.0",
+    "vitest": "^3.0.0"
+  },
+  "peerDependencies": {
+    "@soulcache/core": "workspace:*"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

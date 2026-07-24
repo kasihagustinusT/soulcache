@@ -1,0 +1,47 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: nightly
+  cancel-in-progress: true
+
+jobs:
+  nightly:
+    name: Nightly Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Test
+        run: pnpm test
+
+      - name: Security audit
+        run: pnpm audit --audit-level=high || true
+
+      - name: Validate docs
+        run: node docs/scripts/validate.mjs
+
+      - name: Validate monorepo
+        run: node scripts/validate-monorepo.mjs
+
+      - name: Validate package exports
+        run: node scripts/validate-exports.mjs

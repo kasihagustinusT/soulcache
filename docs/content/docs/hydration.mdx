@@ -1,0 +1,176 @@
+---
+title: Hydration
+description: Learn about SoulCache's hydration for server-side rendering
+---
+
+## Hydration
+
+Hydration transfers server-fetched data to the client cache for instant rendering.
+
+### Functions
+
+#### `dehydrate(cache, options?)`
+
+Serialize cache entries for transport.
+
+```typescript
+import { dehydrate } from '@soulcache/core';
+
+const dehydrated = dehydrate(cache, {
+  maxQueries: 50,
+  includeErrors: true,
+  includeStale: false,
+  filter: (query) => query.queryKey[0] === 'users',
+});
+```
+
+#### `hydrate(cache, state, options?)`
+
+Restore dehydrated state into a cache.
+
+```typescript
+import { hydrate } from '@soulcache/core';
+
+hydrate(cache, dehydrated, {
+  maxQueries: 100,
+  mergeStrategy: 'overwrite',
+  filter: (query) => !query.queryKey.includes('private'),
+});
+```
+
+#### `serialize(state)`
+
+Serialize dehydrated state to JSON string.
+
+```typescript
+import { serialize } from '@soulcache/core';
+
+const json = serialize(dehydrated);
+```
+
+#### `deserialize(json)`
+
+Deserialize JSON string back to dehydrated state.
+
+```typescript
+import { deserialize } from '@soulcache/core';
+
+const state = deserialize(json);
+```
+
+### Types
+
+#### `DehydratedState`
+
+```typescript
+interface DehydratedState {
+  readonly version: number;
+  readonly timestamp: number;
+  readonly queries: DehydratedQuery[];
+}
+```
+
+#### `DehydratedQuery`
+
+```typescript
+interface DehydratedQuery {
+  readonly queryKey: QueryKey;
+  readonly keyHash: string;
+  readonly data: unknown;
+  readonly state: 'idle' | 'pending' | 'success' | 'error';
+  readonly error?: {
+    readonly message: string;
+    readonly name: string;
+    readonly stack?: string;
+  };
+  readonly updatedAt: number;
+  readonly lastFetchedAt?: number;
+  readonly staleAt?: number;
+}
+```
+
+#### `DehydrationOptions`
+
+```typescript
+interface DehydrationOptions {
+  readonly maxQueries?: number;
+  readonly filter?: (query: DehydratedQuery) => boolean;
+  readonly includeErrors?: boolean;   // default: true
+  readonly includeStale?: boolean;    // default: false
+}
+```
+
+#### `HydrationOptions`
+
+```typescript
+interface HydrationOptions {
+  readonly maxQueries?: number;
+  readonly filter?: (query: DehydratedQuery) => boolean;
+  readonly mergeStrategy?: 'skip' | 'overwrite' | 'merge';  // default: 'overwrite'
+}
+```
+
+### Usage
+
+#### Server Side
+
+```typescript
+import { QueryClient, dehydrate } from '@soulcache/core';
+
+const client = new QueryClient();
+
+// Fetch data on server
+await client.fetchQuery({
+  queryKey: ['users'],
+  queryFn: fetchUsers,
+});
+
+// Serialize for hydration
+const dehydrated = dehydrate(client.getCache());
+```
+
+#### Client Side
+
+```typescript
+import { hydrate, QueryClient } from '@soulcache/core';
+
+const client = new QueryClient();
+
+// Rehydrate from server
+hydrate(client.getCache(), dehydrated);
+```
+
+### Features
+
+<FeatureGrid columns={2}>
+  <FeatureCard
+    title="Automatic Serialization"
+    description="Data is automatically serialized and deserialized for transport"
+  />
+  <FeatureCard
+    title="Type-Safe Hydration"
+    description="Full TypeScript support for dehydrated state"
+  />
+  <FeatureCard
+    title="Selective Hydration"
+    description="Only hydrate the queries that are needed on the client"
+  />
+  <FeatureCard
+    title="Merge Strategies"
+    description="Choose between skip, overwrite, or merge hydration strategies"
+  />
+</FeatureGrid>
+
+### Best Practices
+
+<Note type="tip" title="Hydration Guidelines">
+- **Fetch on server** — Pre-populate cache before rendering
+- **Hydrate early** — Do it before first render for optimal performance
+- **Match queries** — Ensure server and client query keys match
+- **Handle mismatches** — Gracefully handle server/client differences
+</Note>
+
+### Related
+
+- [Query System](/docs/query-system)
+- [SSR](/docs/ssr)

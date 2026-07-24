@@ -1,0 +1,88 @@
+---
+title: SSR
+description: Server-side rendering with SoulCache
+---
+
+## Server-Side Rendering
+
+SoulCache supports server-side rendering for instant page loads.
+
+### Usage
+
+#### Server Component
+
+```tsx
+import { QueryClient, dehydrate } from '@soulcache/core';
+
+async function ServerComponent() {
+  const client = new QueryClient();
+
+  await client.fetchQuery({
+    queryKey: ['users'],
+    queryFn: fetchUsers,
+  });
+
+  const dehydrated = dehydrate(client.getCache());
+
+  return <ClientComponent dehydrated={dehydrated} />;
+}
+```
+
+#### Client Component
+
+```tsx
+'use client';
+
+import { useEffect } from 'react';
+import { hydrate, QueryClient } from '@soulcache/core';
+import { SoulCacheProvider } from '@soulcache/react';
+
+const client = new QueryClient();
+
+function ClientComponent({ dehydrated }) {
+  useEffect(() => {
+    hydrate(client.getCache(), dehydrated);
+  }, []);
+
+  return (
+    <SoulCacheProvider client={client}>
+      <MyApp />
+    </SoulCacheProvider>
+  );
+}
+```
+
+### Features
+
+<FeatureGrid columns={2}>
+  <FeatureCard
+    title="Automatic Serialization"
+    description="Data is automatically serialized for transport between server and client"
+  />
+  <FeatureCard
+    title="Type-Safe Hydration"
+    description="Full TypeScript support for dehydrated state"
+  />
+  <FeatureCard
+    title="Partial Hydration"
+    description="Only hydrate the queries that are needed"
+  />
+  <FeatureCard
+    title="Streaming Support"
+    description="Works with React's streaming SSR for progressive loading"
+  />
+</FeatureGrid>
+
+### Best Practices
+
+<Note type="tip" title="SSR Guidelines">
+- **Fetch on server** — Pre-populate cache for instant page loads
+- **Hydrate early** — Before first render for optimal performance
+- **Match queries** — Server and client must use the same query keys
+- **Handle mismatches** — Gracefully handle differences between server and client
+</Note>
+
+### Related
+
+- [Hydration](/docs/hydration)
+- [React Adapter](/docs/react-adapter)

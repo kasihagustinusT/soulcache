@@ -1,0 +1,117 @@
+---
+title: Query System
+description: Learn about SoulCache's query management and data fetching
+---
+
+## Query System
+
+The Query System is responsible for orchestrating data fetching, caching, and state management.
+
+### Core Concepts
+
+#### Query Keys
+
+Query keys uniquely identify queries and enable automatic caching:
+
+```typescript
+// Simple key
+['users']
+
+// Parameterized key
+['users', userId]
+
+// Complex key
+['users', userId, { page: 1, limit: 10 }]
+```
+
+#### Query Functions
+
+Query functions fetch your data:
+
+```typescript
+const data = await client.fetchQuery({
+  queryKey: ['users'],
+  queryFn: async ({ signal }) => {
+    const response = await fetch('/api/users', { signal });
+    return response.json();
+  },
+});
+```
+
+#### Query States
+
+Queries go through several states:
+
+| State | Description |
+|-------|-------------|
+| `idle` | Initial state |
+| `loading` | Currently fetching |
+| `success` | Data available |
+| `error` | Fetch failed |
+| `fetching` | Background refetch |
+
+### Usage
+
+#### Basic Fetch
+
+```typescript
+const data = await client.fetchQuery({
+  queryKey: ['users'],
+  queryFn: () => fetch('/api/users').then(r => r.json()),
+});
+```
+
+#### Subscribe to Updates
+
+```typescript
+const unsubscribe = client.subscribe(['users'], (snapshot) => {
+  console.log(snapshot.data);
+  console.log(snapshot.status);
+});
+```
+
+#### Manual Cache Update
+
+```typescript
+client.setQueryData(['users'], (old) => [...old, newUser]);
+```
+
+#### Invalidation
+
+```typescript
+await client.invalidateQueries(['users']);
+```
+
+### Deduplication
+
+SoulCache automatically deduplicates concurrent requests:
+
+```typescript
+// These will only make one network request
+const p1 = client.fetchQuery({ queryKey: ['users'], queryFn });
+const p2 = client.fetchQuery({ queryKey: ['users'], queryFn });
+
+const [data1, data2] = await Promise.all([p1, p2]);
+```
+
+### Best Practices
+
+1. **Use descriptive query keys** - Make keys meaningful for debugging
+2. **Keep keys stable** - Don't create new arrays unnecessarily
+3. **Set appropriate stale time** - Balance freshness vs performance
+4. **Handle errors gracefully** - Always provide error boundaries
+5. **Clean up subscriptions** - Unsubscribe when components unmount
+
+### Common Mistakes
+
+1. **Creating new key arrays** - This breaks deduplication
+2. **Missing error handling** - Always catch fetch errors
+3. **Forgetting cleanup** - Unsubscribe to prevent memory leaks
+4. **Over-fetching** - Use stale time to reduce requests
+
+### Related
+
+- [Cache System](/docs/cache-system)
+- [Retry](/docs/retry)
+- [Observer](/docs/observer)
+- [QueryClient API Reference](/docs/query-client)

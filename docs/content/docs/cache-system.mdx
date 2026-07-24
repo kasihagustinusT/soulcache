@@ -1,0 +1,179 @@
+---
+title: Cache System
+description: Learn about SoulCache's intelligent caching layer
+---
+
+## Cache System
+
+The Cache System provides high-performance, intelligent caching for your data.
+
+### Core Concepts
+
+#### Cache Entries
+
+Each cached item is stored as a `QueryEntry`:
+
+```typescript
+interface QueryEntry<T> {
+  queryId: string;
+  queryKey: QueryKey;
+  keyHash: string;
+  data: T;
+  status: CacheStatus;
+  state: QueryRecordState;
+  updatedAt: string;        // ISO-8601
+  staleAt: string | null;
+  expiresAt: string | null;
+  version: number;
+  dependencies: string[];
+  meta: Record<string, unknown>;
+  error: Error | null;
+  createdAt: number;
+  lastFetchedAt: number | undefined;
+  observerCount: number;
+  retryCount: number;
+  fetchStatus: QueryRecordFetchStatus;
+  gcEligible: boolean;
+  persistent: boolean;
+  prefetched: boolean;
+  manual: boolean;
+  lastAccessedAt: number;
+  accessCount: number;
+}
+```
+
+#### Cache Status
+
+Entries have a status indicating freshness:
+
+| Status | Description |
+|--------|-------------|
+| `fresh` | Data is current |
+| `stale` | Data may be outdated |
+| `expired` | Data has expired |
+| `invalidated` | Data needs refresh |
+
+#### Query Record State
+
+| State | Description |
+|-------|-------------|
+| `idle` | Initial state |
+| `pending` | Currently fetching |
+| `success` | Data available |
+| `error` | Fetch failed |
+| `fetching` | Background refetch |
+| `stale` | Data is stale |
+| `invalidated` | Marked for refresh |
+| `destroyed` | Entry removed |
+
+### Usage
+
+#### Basic Operations
+
+```typescript
+import { CacheEngine } from '@soulcache/core';
+
+const cache = new CacheEngine();
+
+// Set data
+cache.set({
+  queryKey: ['users'],
+  data: users,
+  state: 'success',
+});
+
+// Get data
+const entry = cache.get(['users']);
+
+// Delete data
+cache.delete(['users']);
+
+// Clear all
+cache.clear();
+```
+
+#### With Options
+
+```typescript
+const cache = new CacheEngine({
+  staleTime: 5 * 60 * 1000, // 5 minutes
+  gcTime: 30 * 60 * 1000, // 30 minutes
+  maxSize: 50000,
+});
+```
+
+### Features
+
+#### Automatic Garbage Collection
+
+Old entries are automatically removed:
+
+```typescript
+const cache = new CacheEngine({
+  gcTime: 5 * 60 * 1000, // 5 minutes
+});
+
+// Entry is cached
+cache.set({ queryKey: ['temp'], data: value });
+
+// After gcTime, entry is removed
+```
+
+#### Dependency Tracking
+
+Cache tracks dependencies between entries:
+
+```typescript
+// When users are invalidated, user detail is also invalidated
+cache.set({
+  queryKey: ['users'],
+  data: users,
+  dependencies: ['user-1-hash', 'user-2-hash'],
+});
+```
+
+#### Version Conflict Detection
+
+Prevents stale overwrites:
+
+```typescript
+cache.set({
+  queryKey: ['counter'],
+  data: 1,
+});
+
+// Entries track versions internally
+const entry = cache.get(['counter']);
+console.log(entry.version);
+```
+
+#### Observer Integration
+
+Cache automatically tracks observers:
+
+```typescript
+const entry = cache.get(['users']);
+console.log(entry.observerCount); // Number of active subscribers
+```
+
+### Performance
+
+| Operation | Time | Space |
+|-----------|------|-------|
+| Get | O(1) | O(1) |
+| Set | O(1) | O(1) |
+| Delete | O(1) | O(1) |
+| Clear | O(n) | O(1) |
+
+### Best Practices
+
+1. **Set appropriate stale time** - Balance freshness vs performance
+2. **Use dependency tracking** - Automatically invalidate related data
+3. **Monitor observer count** - Prevent memory leaks
+4. **Leverage garbage collection** - Let the cache clean up automatically
+
+### Related
+
+- [Query System](/docs/query-system)
+- [Storage](/docs/storage)
+- [CacheEngine API Reference](/docs/cache-engine)

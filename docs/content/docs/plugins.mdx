@@ -1,0 +1,97 @@
+---
+title: Plugins
+description: Learn about SoulCache's plugin system for extensibility
+---
+
+## Plugins
+
+The Plugin System allows you to extend SoulCache with custom behavior.
+
+### Usage
+
+SoulCache provides a plugin infrastructure for custom extensions. Plugins are registered through the plugin manager at initialization time.
+
+```typescript
+import type { Plugin, PluginContext } from '@soulcache/core';
+
+const myPlugin: Plugin = {
+  metadata: {
+    id: 'logging',
+    name: 'Logging Plugin',
+    version: '1.0.0',
+  },
+  onAfterInit: (ctx: PluginContext) => {
+    ctx.log('info', 'Plugin initialized');
+  },
+  onBeforeQuery: (queryKey: unknown[], ctx: PluginContext) => {
+    ctx.log('info', `Query starting: ${queryKey.join('/')}`);
+  },
+  onAfterQuery: (queryKey: unknown[], ctx: PluginContext) => {
+    ctx.log('info', `Query completed: ${queryKey.join('/')}`);
+  },
+};
+```
+
+### Lifecycle
+
+Plugins go through a well-defined lifecycle:
+
+| State | Description |
+|-------|-------------|
+| `discovered` | Plugin found |
+| `validated` | Metadata valid |
+| `registered` | Added to manager |
+| `initialized` | onBeforeInit/onAfterInit called |
+| `active` | Hooks running |
+| `suspended` | Temporarily disabled |
+| `disposed` | Cleaned up |
+
+### Hooks
+
+| Hook | When |
+|------|------|
+| `onBeforeInit` | Before initialization |
+| `onAfterInit` | After initialization |
+| `onBeforeQuery` | Before query execution |
+| `onAfterQuery` | After query completion |
+| `onBeforeMutation` | Before mutation |
+| `onAfterMutation` | After mutation |
+| `onCacheUpdated` | Cache entry updated |
+| `onCacheInvalidated` | Cache entry invalidated |
+| `onSuspend` | Plugin suspended |
+| `onResume` | Plugin resumed |
+| `onDispose` | Plugin disposed |
+
+### Features
+
+<FeatureGrid columns={2}>
+  <FeatureCard
+    title="Dependency Resolution"
+    description="Automatic dependency resolution ensures correct load order"
+  />
+  <FeatureCard
+    title="Error Isolation"
+    description="Each hook is isolated so errors don't cascade"
+  />
+  <FeatureCard
+    title="State Machine"
+    description="Well-defined lifecycle states for predictable behavior"
+  />
+  <FeatureCard
+    title="Dependency Checking"
+    description="Automatic verification of plugin dependencies"
+  />
+</FeatureGrid>
+
+### Best Practices
+
+<Note type="tip" title="Plugin Guidelines">
+- **Keep plugins small** — Single responsibility principle
+- **Handle errors** — Hooks are isolated but should be robust
+- **Declare dependencies** — Ensure correct load order
+- **Clean up** — Use onDispose for resource cleanup
+</Note>
+
+### Related
+
+- [Architecture](/docs/architecture)

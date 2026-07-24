@@ -1,0 +1,75 @@
+{
+  "name": "@soulcache/devtools",
+  "version": "1.0.0",
+  "description": "React DevTools panel for inspecting and debugging SoulCache runtime state",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kasihagustinusT/soulcache.git",
+    "directory": "packages/devtools"
+  },
+  "homepage": "https://soulcache.vercel.app",
+  "bugs": {
+    "url": "https://github.com/kasihagustinusT/soulcache/issues"
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/kasihagustinusT"
+  },
+  "keywords": [
+    "soulcache",
+    "devtools",
+    "react",
+    "debug",
+    "cache",
+    "query",
+    "typescript"
+  ],
+  "license": "MIT",
+  "author": "Kasih Agustinus <kasihagustinus@users.noreply.github.com>",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@soulcache/core": "workspace:*",
+    "@soulcache/devtools-core": "workspace:*",
+    "@types/react": "^18.3.0",
+    "react": "^18.3.0",
+    "typescript": "^5.4.0",
+    "vitest": "^3.0.0"
+  },
+  "peerDependencies": {
+    "@soulcache/core": "workspace:*",
+    "@soulcache/devtools-core": "workspace:*",
+    "react": ">=18.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

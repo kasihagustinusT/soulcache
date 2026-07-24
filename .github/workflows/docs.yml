@@ -1,0 +1,42 @@
+name: Docs Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'packages/core/src/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'packages/core/src/**'
+
+permissions: {}
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate Documentation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Validate docs content
+        run: node docs/scripts/validate.mjs
+
+      - name: Typecheck docs
+        run: pnpm --filter @soulcache/docs typecheck

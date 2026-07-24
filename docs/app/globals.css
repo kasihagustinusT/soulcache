@@ -1,0 +1,555 @@
+@import 'fumadocs-ui/style.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ========================================
+   CSS Custom Properties — Light & Dark
+   ======================================== */
+:root {
+  --sc-bg: 255 255 255;
+  --sc-fg: 17 24 39;
+  --sc-muted: 243 244 246;
+  --sc-muted-fg: 107 114 128;
+  --sc-card: 255 255 255;
+  --sc-card-fg: 17 24 39;
+  --sc-border: 229 231 235;
+  --sc-border-strong: 209 213 219;
+  --sc-ring: 14 165 233;
+  --sc-surface: 249 250 251;
+  --sc-overlay: 0 0 0 / 0.5;
+}
+
+.dark {
+  --sc-bg: 3 7 18;
+  --sc-fg: 229 231 235;
+  --sc-muted: 17 24 39;
+  --sc-muted-fg: 156 163 175;
+  --sc-card: 15 23 42;
+  --sc-card-fg: 229 231 235;
+  --sc-border: 30 41 59;
+  --sc-border-strong: 51 65 85;
+  --sc-ring: 56 189 248;
+  --sc-surface: 15 23 42;
+  --sc-overlay: 0 0 0 / 0.7;
+}
+
+body {
+  color: rgb(var(--sc-fg));
+  background: rgb(var(--sc-bg));
+}
+
+/* ========================================
+   SoulCache logo theme switching
+   ======================================== */
+.soulcache-logo {
+  width: 40px;
+  height: 40px;
+  display: block;
+  object-fit: contain;
+  filter: brightness(0);
+}
+
+.dark .soulcache-logo {
+  filter: brightness(0) invert(1);
+}
+
+/* ========================================
+   Prose — Typography Dark Theme
+   ======================================== */
+.prose {
+  --tw-prose-body: rgb(var(--sc-fg));
+  --tw-prose-headings: rgb(var(--sc-fg));
+  --tw-prose-links: rgb(14 165 233);
+  --tw-prose-bold: rgb(var(--sc-fg));
+  --tw-prose-counters: rgb(var(--sc-muted-fg));
+  --tw-prose-bullets: rgb(var(--sc-muted-fg));
+  --tw-prose-hr: rgb(var(--sc-border));
+  --tw-prose-quotes: rgb(var(--sc-fg));
+  --tw-prose-quote-borders: rgb(14 165 233);
+  --tw-prose-captions: rgb(var(--sc-muted-fg));
+  --tw-prose-code: rgb(var(--sc-fg));
+  --tw-prose-pre-code: rgb(229 231 235);
+  --tw-prose-pre-bg: rgb(15 23 42);
+  --tw-prose-th-borders: rgb(var(--sc-border));
+  --tw-prose-td-borders: rgb(var(--sc-border));
+}
+
+.dark .prose {
+  --tw-prose-body: rgb(209 213 219);
+  --tw-prose-headings: rgb(243 244 246);
+  --tw-prose-links: rgb(56 189 248);
+  --tw-prose-bold: rgb(243 244 246);
+  --tw-prose-counters: rgb(156 163 175);
+  --tw-prose-bullets: rgb(156 163 175);
+  --tw-prose-hr: rgb(51 65 85);
+  --tw-prose-quotes: rgb(229 231 235);
+  --tw-prose-quote-borders: rgb(56 189 248);
+  --tw-prose-captions: rgb(156 163 175);
+  --tw-prose-code: rgb(229 231 235);
+  --tw-prose-pre-code: rgb(209 213 219);
+  --tw-prose-pre-bg: rgb(2 6 15);
+  --tw-prose-th-borders: rgb(51 65 85);
+  --tw-prose-td-borders: rgb(30 41 59);
+}
+
+/* ========================================
+   Cards
+   ======================================== */
+.card {
+  @apply rounded-xl border p-6 transition-all;
+  border-color: rgb(var(--sc-border));
+  background: rgb(var(--sc-card));
+}
+
+.card:hover {
+  border-color: rgb(14 165 233 / 0.5);
+  box-shadow: 0 4px 24px -4px rgb(14 165 233 / 0.08);
+}
+
+.dark .card:hover {
+  border-color: rgb(56 189 248 / 0.4);
+  box-shadow: 0 4px 24px -4px rgb(56 189 248 / 0.06);
+}
+
+.card-title {
+  @apply text-lg font-semibold mb-2;
+  color: rgb(var(--sc-card-fg));
+}
+
+.card-description {
+  color: rgb(var(--sc-muted-fg));
+}
+
+/* ========================================
+   Code blocks — copy button, language badge, line numbers
+   ======================================== */
+.prose pre {
+  @apply rounded-xl border;
+  border-color: rgb(var(--sc-border));
+  background: rgb(2 6 15);
+}
+
+.dark .prose pre {
+  border-color: rgb(30 41 59);
+  background: rgb(2 6 15);
+}
+
+/* Code block wrapper */
+.code-block-wrapper {
+  @apply relative my-6 overflow-hidden rounded-xl border;
+  border-color: rgb(var(--sc-border));
+}
+
+.dark .code-block-wrapper {
+  border-color: rgb(30 41 59);
+}
+
+/* Language badge */
+.code-block-wrapper .lang-badge {
+  @apply absolute top-2.5 left-2.5 z-10 rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider select-none;
+  background: rgb(var(--sc-muted));
+  color: rgb(var(--sc-muted-fg));
+}
+
+/* Copy button */
+.code-block-wrapper .copy-btn {
+  @apply absolute top-2.5 right-2.5 z-10 flex h-7 w-7 items-center justify-center rounded-md opacity-0 transition-all focus-visible:outline-2 focus-visible:outline-offset-2;
+  background: rgb(var(--sc-muted));
+  color: rgb(var(--sc-muted-fg));
+  outline-color: rgb(var(--sc-ring));
+}
+
+.code-block-wrapper .copy-btn:hover {
+  background: rgb(var(--sc-border));
+  color: rgb(var(--sc-fg));
+}
+
+.code-block-wrapper:hover .copy-btn {
+  @apply opacity-100;
+}
+
+.code-block-wrapper .copy-btn.copied {
+  @apply opacity-100;
+  color: rgb(34 197 94);
+}
+
+/* Line numbers */
+.prose pre .line-numbers {
+  @apply select-none pr-4 text-right;
+  color: rgb(75 85 99);
+  border-color: rgb(var(--sc-border));
+}
+
+.dark .prose pre .line-numbers {
+  color: rgb(55 65 81);
+  border-color: rgb(30 41 59);
+}
+
+.prose pre .line-number {
+  @apply inline-block w-8 text-right mr-4 text-[11px] leading-relaxed;
+  color: rgb(75 85 99);
+}
+
+.dark .prose pre .line-number {
+  color: rgb(55 65 81);
+}
+
+/* ========================================
+   Prose code syntax colors — dark optimized
+   ======================================== */
+.prose pre code {
+  @apply text-[13px] leading-relaxed;
+}
+
+.prose pre code .keyword {
+  color: #c084fc;
+}
+
+.prose pre code .string {
+  color: #86efac;
+}
+
+.prose pre code .comment {
+  color: #6b7280;
+  font-style: italic;
+}
+
+.prose pre code .function {
+  color: #93c5fd;
+}
+
+.prose pre code .type {
+  color: #fcd34d;
+}
+
+.prose pre code .number {
+  color: #fdba74;
+}
+
+.prose pre code .operator {
+  color: #67e8f9;
+}
+
+.prose pre code .punctuation {
+  color: #9ca3af;
+}
+
+/* ========================================
+   API reference tables
+   ======================================== */
+.api-table {
+  @apply w-full border-collapse text-sm;
+}
+
+.api-table th,
+.api-table td {
+  @apply border px-4 py-2.5 text-left;
+  border-color: rgb(var(--sc-border));
+}
+
+.api-table th {
+  @apply font-semibold;
+  background: rgb(var(--sc-muted));
+  color: rgb(var(--sc-muted-fg));
+}
+
+.api-table td {
+  color: rgb(var(--sc-fg));
+}
+
+/* ========================================
+   Responsive tables
+   ======================================== */
+
+/* Auto-wrap all MDX-rendered tables for horizontal scroll */
+table {
+  @apply my-6 block w-full overflow-x-auto;
+}
+
+thead {
+  @apply hidden;
+}
+
+@media (min-width: 768px) {
+  thead {
+    @apply table-header-group;
+  }
+}
+
+th {
+  @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider;
+  background: rgb(var(--sc-muted));
+  color: rgb(var(--sc-muted-fg));
+  border-color: rgb(var(--sc-border));
+}
+
+td {
+  @apply border-t px-4 py-3;
+  border-color: rgb(var(--sc-border));
+  color: rgb(var(--sc-muted-fg));
+}
+
+td:first-child {
+  @apply font-medium;
+  color: rgb(var(--sc-fg));
+}
+
+tr:hover td {
+  background: rgb(var(--sc-muted) / 0.5);
+}
+
+.table-wrapper {
+  @apply my-6 overflow-x-auto rounded-xl border;
+  border-color: rgb(var(--sc-border));
+}
+
+.dark .table-wrapper {
+  border-color: rgb(30 41 59);
+}
+
+.table-wrapper table {
+  @apply w-full text-sm;
+}
+
+.table-wrapper th {
+  @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider;
+  background: rgb(var(--sc-muted));
+  color: rgb(var(--sc-muted-fg));
+  border-color: rgb(var(--sc-border));
+}
+
+.table-wrapper td {
+  @apply border-t px-4 py-3;
+  border-color: rgb(var(--sc-border));
+  color: rgb(var(--sc-muted-fg));
+}
+
+.table-wrapper td:first-child {
+  @apply font-medium;
+  color: rgb(var(--sc-fg));
+}
+
+.table-wrapper tr:hover td {
+  background: rgb(var(--sc-muted) / 0.5);
+}
+
+/* ========================================
+   Architecture diagrams
+   ======================================== */
+.arch-diagram {
+  @apply my-8 overflow-x-auto rounded-xl border p-6;
+  border-color: rgb(var(--sc-border));
+  background: rgb(var(--sc-muted));
+}
+
+.dark .arch-diagram {
+  border-color: rgb(30 41 59);
+}
+
+.arch-diagram-row {
+  @apply flex items-center gap-2 mb-2;
+}
+
+.arch-diagram-box {
+  @apply rounded-lg border px-4 py-2 text-sm font-medium transition-colors;
+  border-color: rgb(var(--sc-border-strong));
+  background: rgb(var(--sc-card));
+  color: rgb(var(--sc-fg));
+}
+
+.arch-diagram-box:hover {
+  border-color: rgb(14 165 233);
+}
+
+.dark .arch-diagram-box:hover {
+  border-color: rgb(56 189 248);
+}
+
+.arch-diagram-box.accent {
+  border-color: rgb(14 165 233 / 0.5);
+  background: rgb(14 165 233 / 0.08);
+  color: rgb(14 165 233);
+}
+
+.dark .arch-diagram-box.accent {
+  border-color: rgb(56 189 248 / 0.4);
+  background: rgb(56 189 248 / 0.08);
+  color: rgb(56 189 248);
+}
+
+.arch-diagram-box.highlight {
+  border-color: rgb(14 165 233);
+  background: rgb(14 165 233 / 0.12);
+  color: rgb(14 165 233);
+  @apply font-semibold;
+}
+
+.dark .arch-diagram-box.highlight {
+  border-color: rgb(56 189 248);
+  background: rgb(56 189 248 / 0.12);
+  color: rgb(56 189 248);
+}
+
+.arch-diagram-connector {
+  @apply flex items-center justify-center;
+  color: rgb(var(--sc-muted-fg));
+}
+
+.arch-diagram-label {
+  @apply text-xs font-semibold uppercase tracking-wider mb-1;
+  color: rgb(var(--sc-muted-fg));
+}
+
+/* ========================================
+   Flow diagrams
+   ======================================== */
+.flow-diagram {
+  @apply my-8 flex items-center gap-3 overflow-x-auto;
+}
+
+.flow-step {
+  @apply flex items-center gap-3;
+}
+
+.flow-node {
+  @apply rounded-lg border px-4 py-3 text-sm font-medium shadow-sm;
+  border-color: rgb(var(--sc-border));
+  background: rgb(var(--sc-card));
+  color: rgb(var(--sc-fg));
+}
+
+.flow-arrow {
+  @apply shrink-0;
+  color: rgb(var(--sc-muted-fg));
+}
+
+/* ========================================
+   File tree
+   ======================================== */
+.file-tree {
+  @apply my-6 overflow-hidden rounded-xl border font-mono text-sm;
+  border-color: rgb(var(--sc-border));
+}
+
+.dark .file-tree {
+  border-color: rgb(30 41 59);
+}
+
+.file-tree-header {
+  @apply border-b px-4 py-2 text-xs font-semibold;
+  border-color: rgb(var(--sc-border));
+  background: rgb(var(--sc-muted));
+  color: rgb(var(--sc-muted-fg));
+}
+
+.file-tree-item {
+  @apply flex items-center gap-2 px-4 py-1.5 transition-colors;
+}
+
+.file-tree-item:hover {
+  background: rgb(var(--sc-muted) / 0.5);
+}
+
+.file-tree-item .indent {
+  @apply select-none;
+  color: rgb(var(--sc-border));
+}
+
+.file-tree-item .icon {
+  @apply shrink-0;
+  color: rgb(14 165 233);
+}
+
+.dark .file-tree-item .icon {
+  color: rgb(56 189 248);
+}
+
+.file-tree-item .name {
+  color: rgb(var(--sc-fg));
+}
+
+.file-tree-item .desc {
+  @apply ml-auto text-xs;
+  color: rgb(var(--sc-muted-fg));
+}
+
+/* ========================================
+   Scrollbar — dark optimized
+   ======================================== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--sc-border-strong));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--sc-muted-fg));
+}
+
+/* ========================================
+   Smooth scrolling
+   ======================================== */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ========================================
+   Selection styling
+   ======================================== */
+::selection {
+  background: rgb(14 165 233 / 0.25);
+}
+
+.dark ::selection {
+  background: rgb(56 189 248 / 0.3);
+}
+
+/* ========================================
+   Focus visible — stronger rings
+   ======================================== */
+:focus-visible {
+  @apply outline-2 outline-offset-2;
+  outline-color: rgb(var(--sc-ring));
+}
+
+/* ========================================
+   Reduced motion
+   ======================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ========================================
+   High contrast mode support
+   ======================================== */
+@media (forced-colors: active) {
+  .card,
+  .table-wrapper,
+  .code-block-wrapper,
+  .arch-diagram,
+  .file-tree {
+    border: 1px solid ButtonText;
+  }
+
+  .copy-btn,
+  .lang-badge {
+    border: 1px solid ButtonText;
+  }
+}

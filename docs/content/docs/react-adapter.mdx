@@ -1,0 +1,281 @@
+---
+title: React Adapter
+description: Learn how to use SoulCache with React
+---
+
+## React Adapter
+
+The React adapter provides hooks and components for seamless React integration.
+
+### Installation
+
+```bash
+npm install @soulcache/react
+```
+
+### Provider
+
+Wrap your app with the provider:
+
+```tsx
+import { SoulCacheProvider } from '@soulcache/react';
+import { QueryClient } from '@soulcache/core';
+
+const client = new QueryClient();
+
+function App() {
+  return (
+    <SoulCacheProvider client={client}>
+      <MyApp />
+    </SoulCacheProvider>
+  );
+}
+```
+
+### Hooks
+
+#### useQuery
+
+```tsx
+import { useQuery } from '@soulcache/react';
+
+function Users() {
+  const { data, status, error, isLoading, isFetching, isError, isSuccess } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => fetch('/api/users').then(r => r.json()),
+  });
+
+  if (isLoading) return <Spinner />;
+  if (isError) return <Error message={error?.message} />;
+
+  return (
+    <ul>
+      {data?.map(user => (
+        <li key={user.id}>{user.name}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+**Options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `queryKey` | `QueryKey` | — | Cache identification key (required) |
+| `queryFn` | `() => Promise<T>` | — | Fetch function (required) |
+| `enabled` | `boolean` | `true` | Whether the query auto-fetches |
+| `suspense` | `boolean` | `false` | Throws a promise for React Suspense |
+| `throwOnError` | `boolean` | `false` | Throws the error for error boundaries |
+| `onSuccess` | `(data: T) => void` | — | Callback on successful fetch |
+| `onError` | `(error: Error) => void` | — | Callback on fetch error |
+
+**Returns:**
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `data` | `T \| undefined` | Current query data |
+| `error` | `Error \| null` | Current error |
+| `status` | `QueryStatus` | `'idle' \| 'loading' \| 'success' \| 'error' \| 'fetching'` |
+| `fetchStatus` | `FetchStatus` | `'idle' \| 'fetching' \| 'paused'` |
+| `isLoading` | `boolean` | Loading with no data yet |
+| `isFetching` | `boolean` | Any fetch in progress |
+| `isError` | `boolean` | Error state |
+| `isSuccess` | `boolean` | Success state |
+| `isIdle` | `boolean` | Idle state |
+| `dataUpdatedAt` | `number` | Timestamp of last update |
+
+#### useMutation
+
+```tsx
+import { useMutation, useQueryClient } from '@soulcache/react';
+
+function CreateUser() {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: (newUser) =>
+      fetch('/api/users', {
+        method: 'POST',
+        body: JSON.stringify(newUser),
+      }).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['users']);
+    },
+  });
+
+  return (
+    <form onSubmit={(e) => {
+      e.preventDefault();
+      mutation.mutate({ name: 'John' });
+    }}>
+      <button disabled={mutation.isPending}>
+        {mutation.isPending ? 'Creating...' : 'Create User'}
+      </button>
+    </form>
+  );
+}
+```
+
+**Options:**
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `mutationFn` | `(variables: TVariables) => Promise<TData>` | The mutation function (required) |
+| `onMutate` | `(variables: TVariables) => unknown` | Pre-mutation callback (return context) |
+| `onSuccess` | `(data, variables, context) => void` | Post-success callback |
+| `onError` | `(error, variables, context) => void` | Post-error callback |
+| `onSettled` | `(data, error, variables, context) => void` | Post-settle callback |
+
+**Returns:**
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `data` | `TData \| undefined` | Mutation result data |
+| `error` | `Error \| null` | Mutation error |
+| `status` | `MutationStatus` | `'idle' \| 'pending' \| 'success' \| 'error'` |
+| `isPending` | `boolean` | Currently executing |
+| `isSuccess` | `boolean` | Succeeded |
+| `isError` | `boolean` | Errored |
+| `isIdle` | `boolean` | Not yet triggered |
+| `mutate` | `(variables: TVariables) => void` | Trigger mutation |
+| `mutateAsync` | `(variables: TVariables) => Promise<TData>` | Trigger mutation (returns promise) |
+| `reset` | `() => void` | Reset mutation state |
+
+#### useInfiniteQuery
+
+```tsx
+import { useInfiniteQuery } from '@soulcache/react';
+
+function PostList() {
+  const {
+    data, fetchNextPage, fetchPreviousPage,
+    hasNextPage, hasPreviousPage,
+    isFetchingNextPage, isFetchingPreviousPage,
+    pageCount,
+  } = useInfiniteQuery({
+    queryKey: ['posts'],
+    queryFn: ({ pageParam }) =>
+      fetch(`/api/posts?page=${pageParam}`).then(r => r.json()),
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    getPreviousPageParam: (firstPage) => firstPage.prevCursor,
+    initialPageParam: 0,
+  });
+
+  return (
+    <div>
+      {data?.pages.map((page, i) => (
+        <div key={i}>
+          {page.data.map(post => (
+            <Post key={post.id} post={post} />
+          ))}
+        </div>
+      ))}
+      <button
+        onClick={() => fetchNextPage()}
+        disabled={!hasNextPage || isFetchingNextPage}
+      >
+        {isFetchingNextPage ? 'Loading...' : 'Load More'}
+      </button>
+    </div>
+  );
+}
+```
+
+#### useQueryClient
+
+Access the QueryClient instance for imperative operations:
+
+```tsx
+import { useQueryClient } from '@soulcache/react';
+
+function SearchButton() {
+  const queryClient = useQueryClient();
+
+  return (
+    <button onClick={() => queryClient.fetchQuery({
+      queryKey: ['search', query],
+      queryFn: () => search(query),
+    })}>
+      Search
+    </button>
+  );
+}
+```
+
+#### usePrefetchQuery
+
+Returns a callback that silently prefetches data:
+
+```tsx
+import { usePrefetchQuery } from '@soulcache/react';
+
+function UserLink({ userId }) {
+  const prefetch = usePrefetchQuery({
+    queryKey: ['user', userId],
+    queryFn: () => fetchUser(userId),
+  });
+
+  return (
+    <Link onMouseEnter={prefetch} to={`/users/${userId}`}>
+      View User
+    </Link>
+  );
+}
+```
+
+#### useIsFetching
+
+Returns the count of currently fetching queries:
+
+```tsx
+import { useIsFetching } from '@soulcache/react';
+
+function GlobalSpinner() {
+  const isFetching = useIsFetching();
+  return isFetching > 0 ? <Spinner /> : null;
+}
+```
+
+#### useIsMutating
+
+Returns the count of currently pending mutations:
+
+```tsx
+import { useIsMutating } from '@soulcache/react';
+
+function MutationStatus() {
+  const isMutating = useIsMutating();
+  return isMutating > 0 ? <SavingIndicator /> : null;
+}
+```
+
+### DevTools
+
+Enable devtools for debugging:
+
+```tsx
+import { SoulCacheDevToolsPanel } from '@soulcache/devtools';
+
+function App() {
+  return (
+    <SoulCacheProvider client={client}>
+      <MyApp />
+      <SoulCacheDevToolsPanel />
+    </SoulCacheProvider>
+  );
+}
+```
+
+### Best Practices
+
+<Note type="tip" title="React Guidelines">
+- **Wrap once** — Provider should be at the root of your app
+- **Stable keys** — Don't create new arrays in render
+- **Error boundaries** — Always wrap with error boundaries
+- **Cleanup** — Provider handles cleanup automatically
+</Note>
+
+### Related
+
+- [Query System](/docs/query-system)
+- [Architecture](/docs/architecture)

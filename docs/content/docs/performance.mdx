@@ -1,0 +1,131 @@
+---
+title: Performance
+description: Optimize SoulCache for production use
+---
+
+'use client'
+
+## Performance
+
+SoulCache is designed for performance. Here are optimization strategies.
+
+### Bundle Size
+
+SoulCache has zero runtime dependencies and a small bundle:
+
+```typescript
+// Import only what you need
+import { QueryClient } from '@soulcache/core';
+import { useQuery } from '@soulcache/react';
+```
+
+### Tree Shaking
+
+SoulCache supports tree shaking. Import only what you need:
+
+```typescript
+// Good: Import specific exports
+import { QueryClient, CacheEngine } from '@soulcache/core';
+import { useQuery } from '@soulcache/react';
+
+// All packages declare sideEffects: false
+```
+
+### Caching Strategies
+
+#### Stale While Revalidate
+
+```typescript
+const client = new QueryClient({
+  defaultOptions: {
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes
+  },
+});
+```
+
+#### Background Refetching
+
+```typescript
+// staleTime is configured on the QueryClient
+const client = new QueryClient({
+  defaultOptions: {
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  },
+});
+```
+
+### Memory Management
+
+#### Garbage Collection
+
+```typescript
+// Manual garbage collection
+client.getCache().collectGarbage();
+
+// Automatic with gcTime
+const client = new QueryClient({
+  defaultOptions: {
+    gcTime: 5 * 60 * 1000, // 5 minutes (override)
+  },
+});
+```
+
+#### Observer Cleanup
+
+```typescript
+// Always unsubscribe
+const unsubscribe = client.subscribe(['users'], callback);
+
+// Cleanup when done
+unsubscribe();
+```
+
+### Network Optimization
+
+#### Deduplication
+
+```typescript
+// Automatic deduplication
+const p1 = client.fetchQuery({ queryKey: ['users'], queryFn });
+const p2 = client.fetchQuery({ queryKey: ['users'], queryFn });
+
+// Only one network request
+const [data1, data2] = await Promise.all([p1, p2]);
+```
+
+#### Request Coalescing
+
+```typescript
+// Requests are coalesced automatically
+for (let i = 0; i < 10; i++) {
+  client.fetchQuery({ queryKey: ['users'], queryFn });
+}
+// Only one network request
+```
+
+### Monitoring
+
+```typescript
+// Get cache statistics
+const stats = client.getCache().getStats();
+console.log('Cache size:', stats.size);
+console.log('Active entries:', stats.activeEntries);
+
+// Get query metrics
+const metrics = client.getScheduler().getMetrics();
+console.log('Tasks completed:', metrics.totalCompleted);
+```
+
+### Best Practices
+
+1. **Set appropriate stale time** — Balance freshness vs performance
+2. **Use garbage collection** — Prevent memory leaks
+3. **Monitor metrics** — Detect performance issues
+4. **Optimize queries** — Use selective queries
+5. **Clean up subscriptions** — Prevent memory leaks
+
+### Related
+
+- [Architecture](/docs/architecture)
+- [Cache System](/docs/cache-system)

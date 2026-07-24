@@ -1,0 +1,28 @@
+---
+title: ObserverManager
+description: Internal architecture - Observer coordination and subscription management
+---
+
+## ObserverManager (Internal)
+
+<Note type="info" title="Internal Implementation">
+`ObserverManager` is an internal class used by QueryClient. Use `QueryClient.subscribe()` for the public observation API.
+</Note>
+
+The ObserverManager coordinates observer subscriptions, batches notifications, and manages observer lifecycle. It is used internally by `QueryClient` to manage `QueryObserver` instances.
+
+### Public Alternative
+
+Use `QueryClient.subscribe()` to observe query updates:
+
+```typescript
+const unsubscribe = client.subscribe(['users'], (snapshot) => {
+  console.log(snapshot.data);
+  console.log(snapshot.status);
+});
+```
+
+### Related
+
+- [Observer](/docs/observer)
+- [Architecture](/docs/architecture)
