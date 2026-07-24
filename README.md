@@ -68,18 +68,16 @@ flowchart TD
 ## Installation
 
 ```bash
+# npm
 npm install @soulcache/core
-```
 
-```bash
+# pnpm
 pnpm add @soulcache/core
-```
 
-```bash
+# yarn
 yarn add @soulcache/core
-```
 
-```bash
+# bun
 bun add @soulcache/core
 ```
 
