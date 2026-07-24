@@ -2,136 +2,88 @@
 
 <img
   src="https://github.com/user-attachments/assets/a87816ee-7cdb-4671-b1b1-30e7560d7a7b"
-  alt="SoulCache Logo"
+  alt="SoulCache"
   width="700"
 />
 
 # SoulCache
 
-TypeScript-native data fetching and caching for any application.
+A high-performance runtime for data fetching and caching
 
 [![CI](https://github.com/kasihagustinusT/soulcache/actions/workflows/ci.yml/badge.svg)](https://github.com/kasihagustinusT/soulcache/actions/workflows/ci.yml)
 [![Release](https://github.com/kasihagustinusT/soulcache/actions/workflows/release.yml/badge.svg)](https://github.com/kasihagustinusT/soulcache/actions/workflows/release.yml)
 [![npm](https://img.shields.io/npm/v/@soulcache/core)](https://www.npmjs.com/package/@soulcache/core)
-[![Downloads](https://img.shields.io/npm/dm/@soulcache/core)](https://www.npmjs.com/package/@soulcache/core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-blue.svg)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.4+-blue.svg)](https://www.typescriptlang.org/)
 [![Documentation](https://img.shields.io/badge/Docs-soulcache.vercel.app-green.svg)](https://soulcache.vercel.app)
 
-[Documentation](https://soulcache.vercel.app) · [npm](https://www.npmjs.com/package/@soulcache/core) · [Examples](./packages/examples) · [Issues](https://github.com/kasihagustinusT/soulcache/issues)
+[Documentation](https://soulcache.vercel.app) | [npm](https://www.npmjs.com/package/@soulcache/core) | [Issues](https://github.com/kasihagustinusT/soulcache/issues)
 
 </div>
 
-SoulCache is a framework-agnostic data fetching and caching runtime for TypeScript applications. It handles deduplication, background refetching, retry logic, and cache invalidation with zero runtime dependencies.
-
-Use it when you need predictable caching behavior across client and server without coupling to a specific UI framework. Works with React, Next.js, Vue, Svelte, or vanilla JavaScript.
-
-**Table of Contents**
-
-- [Why SoulCache](#why-soulcache)
-- [Features](#features)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [React Example](#react-example)
-- [Package Overview](#package-overview)
-- [DevTools](#devtools)
-- [Performance](#performance)
-- [Browser & Runtime Support](#browser--runtime-support)
-- [Documentation](#documentation)
-- [Examples](#examples)
-- [Project Status](#project-status)
-- [Contributing](#contributing)
-- [Support](#support)
-- [License](#license)
+SoulCache is a framework-agnostic TypeScript runtime for data fetching and caching. It provides request deduplication, background refetching, retry logic, cache invalidation, and SSR hydration with zero runtime dependencies.
 
 ## Why SoulCache
 
-- **Predictable caching.** Stale-while-revalidate, garbage collection, and invalidation follow clear, inspectable rules.
-- **Minimal overhead.** Tree-shakeable packages. No runtime dependencies to install or audit.
-- **Full type safety.** Strict TypeScript with zero `any` types in source.
-- **Framework flexibility.** Core is framework-agnostic. React bindings use `useSyncExternalStore`.
-- **Observable state.** Subscribe to any query key and receive structured snapshots.
-- **Extensible design.** Plugin system with lifecycle hooks for custom storage, retry, and middleware.
+SoulCache is built for applications that fetch data from multiple sources and need a unified caching layer without coupling to a specific UI framework.
 
-## Features
+- You are using React, Next.js, Vue, Svelte, or vanilla JavaScript
+- You need shared caching logic across client and server
+- You want predictable cache invalidation without boilerplate
+- You need DevTools for debugging cache behavior in development
 
-### Core Runtime
+## Key Features
 
-- Zero runtime dependencies
-- Full TypeScript with strict mode
-- ESM-only with tree-shaking
-- Framework-agnostic design
+| Feature | Description |
+|---------|-------------|
+| **Framework-agnostic runtime** | Works with any UI framework or vanilla JavaScript |
+| **Zero runtime dependencies** | Tree-shakeable packages with no external dependencies |
+| **TypeScript-first API** | Strict mode with full type inference |
+| **Query caching** | Stale-while-revalidate, configurable TTL, automatic eviction |
+| **Request deduplication** | Concurrent requests for the same key share a single network call |
+| **Mutations** | Optimistic updates with rollback and automatic cache invalidation |
+| **Infinite queries** | Cursor-based pagination with page deduplication |
+| **SSR & hydration** | Server-side prefetching with dehydrate/hydrate support |
+| **Storage adapters** | Pluggable Memory, IndexedDB, and LocalStorage adapters |
+| **Plugin system** | Lifecycle hooks for query, mutation, and cache events |
+| **React bindings** | Hooks built on `useSyncExternalStore` for React 18+ |
+| **DevTools** | Real-time inspection panel with timeline and performance metrics |
 
-### Caching
+## Architecture
 
-- Stale-while-revalidate
-- Configurable TTL and garbage collection
-- Automatic eviction
-- Dependency tracking
-
-### Fetching
-
-- Request deduplication
-- Automatic retry with exponential, linear, or constant backoff
-- Error classification
-- Background refetching
-
-### Mutations
-
-- Optimistic updates with rollback
-- Mutation cache with observer support
-- Automatic cache invalidation
-
-### SSR & Hydration
-
-- Server-side prefetching
-- Dehydrate/hydrate for streaming
-- Partial hydration
-- Next.js App Router compatible
-
-### Storage
-
-- Pluggable adapters (Memory, IndexedDB, LocalStorage)
-- Automatic persistence
-- Migration manager
-
-### Plugins
-
-- Lifecycle hooks for query, mutation, and cache events
-- Error isolation per hook
-- Automatic dependency resolution
-
-### DevTools
-
-- Floating panel with keyboard shortcut (Ctrl/Cmd+Shift+D)
-- Query, mutation, and cache inspection
-- Timeline recording
-- p50, p95, p99 metrics
-
-## Requirements
-
-- **Node.js** 20 or later
-- **TypeScript** 5.4 or later
-- **React** 18 or later (only if using `@soulcache/react`)
+```mermaid
+flowchart TD
+    App[Application] --> RA[React Adapter]
+    RA --> QC[QueryClient]
+    QC --> QE[QueryEngine]
+    QE --> CE[CacheEngine]
+    QE --> RE[RetryEngine]
+    QE --> OM[ObserverManager]
+    CE --> ST[Storage]
+    QC --> MC[MutationCache]
+    MC --> MO[MutationObserver]
+    App --> DT[DevTools]
+```
 
 ## Installation
 
 ```bash
-# npm
 npm install @soulcache/core
+```
 
-# pnpm
+```bash
 pnpm add @soulcache/core
+```
 
-# yarn
+```bash
 yarn add @soulcache/core
+```
 
-# bun
+```bash
 bun add @soulcache/core
 ```
 
-For React applications, also install the React adapter:
+For React applications:
 
 ```bash
 npm install @soulcache/react @soulcache/core
@@ -144,18 +96,18 @@ import { QueryClient } from '@soulcache/core';
 
 const client = new QueryClient();
 
-// Fetch data with automatic caching
+// Fetch data
 const users = await client.fetchQuery({
   queryKey: ['users'],
   queryFn: () => fetch('/api/users').then((r) => r.json()),
 });
 
-// Subscribe to real-time updates
+// Subscribe to updates
 const unsubscribe = client.subscribe(['users'], (snapshot) => {
   console.log(snapshot.data, snapshot.status);
 });
 
-// Update cache manually
+// Update cache
 client.setQueryData(['users'], (prev) => [...prev, newUser]);
 
 // Invalidate and refetch
@@ -202,69 +154,36 @@ function UserList() {
 
 ## Package Overview
 
-| Package | Description |
-|---------|-------------|
-| [`@soulcache/core`](./packages/core) | Core runtime with cache, query engine, retry, scheduler, storage, and plugin system |
-| [`@soulcache/react`](./packages/react) | React bindings via `useSyncExternalStore` |
-| [`@soulcache/devtools-core`](./packages/devtools-core) | Framework-agnostic inspection and diagnostics |
-| [`@soulcache/devtools`](./packages/devtools) | React DevTools panel with timeline, metrics, and session recording |
-
-## DevTools
-
-Real-time inspection of cache state, query lifecycle, and performance metrics.
-
-```tsx
-import { SoulCacheDevToolsPanel } from '@soulcache/devtools';
-
-function App() {
-  return (
-    <SoulCacheProvider client={queryClient}>
-      <MyApp />
-      <SoulCacheDevToolsPanel />
-    </SoulCacheProvider>
-  );
-}
-```
-
-Open with `Ctrl/Cmd+Shift+D`. Six tabs: Queries, Mutations, Timeline, Metrics, Health, Settings.
-
-## Performance
-
-- O(1) cache lookups
-- Tree-shakeable packages
-- Benchmark suite included in `packages/core/src/benchmark/`
-
-## Browser & Runtime Support
-
-| Runtime | Status |
-|---------|--------|
-| Node.js 20+ | Supported |
-| Bun 1.x | Supported |
-| Deno 1.x+ | Supported |
-| Edge Runtime | Supported |
-| Browser (ESM) | Supported |
-| React 18 | Supported |
-| React 19 | Supported |
-| Next.js | Supported |
-| Vite | Supported |
-| Astro | Supported |
-| Remix | Supported |
+| Package | Purpose | Status |
+|---------|---------|--------|
+| [`@soulcache/core`](./packages/core) | Core runtime with cache, query engine, retry, scheduler, storage, and plugin system | Stable |
+| [`@soulcache/react`](./packages/react) | React bindings via `useSyncExternalStore` | Stable |
+| [`@soulcache/devtools-core`](./packages/devtools-core) | Framework-agnostic inspection and diagnostics | Stable |
+| [`@soulcache/devtools`](./packages/devtools) | React DevTools panel with timeline, metrics, and session recording | Stable |
 
 ## Documentation
 
-- [Getting Started](https://soulcache.vercel.app/docs/installation) -- Installation and setup
-- [API Reference](https://soulcache.vercel.app/docs/query-client) -- Complete API documentation
-- [React Adapter](https://soulcache.vercel.app/docs/react-adapter) -- Hooks and components
-- [Migration Guide](https://soulcache.vercel.app/docs/migration-guide) -- Migrate from React Query or SWR
-- [Performance](https://soulcache.vercel.app/docs/performance) -- Benchmarks and optimization
-
-## Examples
-
-Example projects are available in [`packages/examples`](./packages/examples).
+| Topic | Description |
+|-------|-------------|
+| [Installation](https://soulcache.vercel.app/docs/installation) | Setup and configuration guide |
+| [Quick Start](https://soulcache.vercel.app/docs/quick-start) | Getting started in 5 minutes |
+| [API Reference](https://soulcache.vercel.app/docs/query-client) | Complete API documentation |
+| [React Adapter](https://soulcache.vercel.app/docs/react-adapter) | React hooks and components |
+| [Storage](https://soulcache.vercel.app/docs/storage) | Persistence adapters and configuration |
+| [Plugins](https://soulcache.vercel.app/docs/plugins) | Lifecycle hooks and custom extensions |
+| [Hydration](https://soulcache.vercel.app/docs/hydration) | SSR and streaming support |
+| [Migration Guide](https://soulcache.vercel.app/docs/migration-guide) | Upgrading between versions |
+| [Performance](https://soulcache.vercel.app/docs/performance) | Benchmarks and optimization |
+| [Troubleshooting](https://soulcache.vercel.app/docs/troubleshooting) | Common issues and solutions |
 
 ## Project Status
 
-SoulCache is production-ready and actively maintained. The public API follows Semantic Versioning. Documentation includes installation guides, API reference, migration guides, and release notes at [soulcache.vercel.app](https://soulcache.vercel.app).
+- Production-ready
+- MIT License
+- Semantic Versioning
+- GitHub Actions CI/CD
+- TypeScript strict mode
+- Actively maintained
 
 ## Contributing
 
@@ -272,10 +191,10 @@ Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) for th
 
 ## Support
 
-- [GitHub Issues](https://github.com/kasihagustinusT/soulcache/issues) -- Bug reports and feature requests
-- [Security Policy](https://github.com/kasihagustinusT/soulcache/blob/main/SECURITY.md) -- Vulnerability reporting
-- [Support](https://github.com/kasihagustinusT/soulcache/blob/main/SUPPORT.md) -- Getting help
+- [GitHub Issues](https://github.com/kasihagustinusT/soulcache/issues) — Bug reports and feature requests
+- [Security Policy](https://github.com/kasihagustinusT/soulcache/blob/main/SECURITY.md) — Vulnerability reporting
+- [Documentation](https://soulcache.vercel.app) — Complete documentation
 
 ## License
 
-[MIT](LICENSE) -- Copyright (c) 2026 Kasih Agustinus
+[MIT](LICENSE) — Copyright (c) 2026 Kasih Agustinus
