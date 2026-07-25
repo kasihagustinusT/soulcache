@@ -6,8 +6,8 @@ interface FrameworkBadgeProps {
 export function FrameworkBadge({ name, status = 'supported' }: FrameworkBadgeProps) {
   const color =
     status === 'supported'
-      ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/40 dark:text-green-300 dark:border-green-800/60'
-      : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60';
+      ? 'bg-muted text-foreground border-border'
+      : 'bg-accent text-foreground border-border';
 
   return (
     <span

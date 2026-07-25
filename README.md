@@ -44,7 +44,7 @@ SoulCache is built for applications that fetch data from multiple sources and ne
 | **Mutations** | Optimistic updates with rollback and automatic cache invalidation |
 | **Infinite queries** | Cursor-based pagination with page deduplication |
 | **SSR & hydration** | Server-side prefetching with dehydrate/hydrate support |
-| **Storage adapters** | Pluggable Memory, IndexedDB, and LocalStorage adapters |
+| **Storage persistence** | Pluggable persistence with MemoryAdapter and migration support |
 | **Plugin system** | Lifecycle hooks for query, mutation, and cache events |
 | **React bindings** | Hooks built on `useSyncExternalStore` for React 18+ |
 | **DevTools** | Real-time inspection panel with timeline and performance metrics |
@@ -55,29 +55,49 @@ SoulCache is built for applications that fetch data from multiple sources and ne
 flowchart TD
     App[Application] --> RA[React Adapter]
     RA --> QC[QueryClient]
-    QC --> QE[QueryEngine]
-    QE --> CE[CacheEngine]
-    QE --> RE[RetryEngine]
-    QE --> OM[ObserverManager]
-    CE --> ST[Storage]
+
+    QC --> CE[CacheEngine]
     QC --> MC[MutationCache]
-    MC --> MO[MutationObserver]
+    QC --> EB[EventBus]
+    QC --> SC[Scheduler]
+
+    QE[QueryEngine] --> QC
+    QE --> RE[RetryEngine]
+
+    MC --> ME[MutationEntry]
+    ME --> MO[MutationObserver]
+
+    CE --> QSM[QueryStateMachine]
+    QSM --> QO[QueryObserver]
+
+    ST[StorageManager] --> PM[PersistenceCoordinator]
+    PM --> MM[MigrationManager]
+    PM --> RM[RestoreManager]
+
     App --> DT[DevTools]
+
+    classDef core fill:#374151,stroke:#6b7280,color:#f9fafb
+    classDef internal fill:#1f2937,stroke:#4b5563,color:#e5e7eb
+    class QC,CE,MC core
+    class QE,RE internal
+    class EB,SC,QSM,ME,MO,QO,ST,PM,MM,RM internal
 ```
 
 ## Installation
 
 ```bash
-# npm
 npm install @soulcache/core
+```
 
-# pnpm
+```bash
 pnpm add @soulcache/core
+```
 
-# yarn
+```bash
 yarn add @soulcache/core
+```
 
-# bun
+```bash
 bun add @soulcache/core
 ```
 
@@ -174,10 +194,6 @@ function UserList() {
 | [Performance](https://soulcache.vercel.app/docs/performance) | Benchmarks and optimization |
 | [Troubleshooting](https://soulcache.vercel.app/docs/troubleshooting) | Common issues and solutions |
 
-## Current Status
-
-• Stable public API
-
 • Semantic Versioning
 
 • MIT License
@@ -188,6 +204,12 @@ function UserList() {
 
 • Framework-agnostic runtime
 
+- Production-ready
+- MIT License
+- Semantic Versioning
+- GitHub Actions CI/CD
+- TypeScript strict mode
+- Actively maintained
 
 ## Contributing
 

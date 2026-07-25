@@ -12,7 +12,9 @@ The Plugin System allows you to extend SoulCache with custom behavior.
 SoulCache provides a plugin infrastructure for custom extensions. Plugins are registered through the plugin manager at initialization time.
 
 ```typescript
-import type { Plugin, PluginContext } from '@soulcache/core';
+// Plugin types are internal to @soulcache/core
+// Import from the plugin subpath when it becomes public
+import type { Plugin, PluginContext } from '@soulcache/core/plugin';
 
 const myPlugin: Plugin = {
   metadata: {
@@ -44,7 +46,11 @@ Plugins go through a well-defined lifecycle:
 | `initialized` | onBeforeInit/onAfterInit called |
 | `active` | Hooks running |
 | `suspended` | Temporarily disabled |
+| `resuming` | Being resumed from suspension |
+| `stopping` | Disposal in progress |
 | `disposed` | Cleaned up |
+| `removed` | Unregistered from manager |
+| `error` | Initialization failed |
 
 ### Hooks
 
@@ -58,6 +64,7 @@ Plugins go through a well-defined lifecycle:
 | `onAfterMutation` | After mutation |
 | `onCacheUpdated` | Cache entry updated |
 | `onCacheInvalidated` | Cache entry invalidated |
+| `onShutdown` | Runtime shutdown |
 | `onSuspend` | Plugin suspended |
 | `onResume` | Plugin resumed |
 | `onDispose` | Plugin disposed |

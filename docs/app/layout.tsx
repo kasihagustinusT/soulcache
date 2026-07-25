@@ -1,11 +1,8 @@
 import './globals.css';
 import { RootProvider } from 'fumadocs-ui/provider';
 import type { Metadata } from 'next';
-import { BackToTop } from '@/components/back-to-top';
-
-const BASE_URL = 'https://soulcache.vercel.app';
-const LOGO_URL = 'https://res.cloudinary.com/vaslp5ww/image/upload/v1784809523/soulcache-logo_isux6t.svg';
-const OG_IMAGE_URL = 'https://res.cloudinary.com/vaslp5ww/image/upload/f_auto,q_auto,w_512/v1784806314/soulcache-logo_tjwmu7.png';
+import { SplashScreen } from '@/components/splash-screen';
+import { BASE_URL, LOGO_URL, OG_IMAGE_URL } from '@/lib/constants';
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
@@ -13,8 +10,8 @@ export const metadata: Metadata = {
     default: 'SoulCache - TypeScript Data Fetching & Caching Runtime',
     template: '%s | SoulCache',
   },
-  description: 'A lightweight, framework-agnostic data fetching and caching runtime for TypeScript applications. Zero runtime dependencies. Full type safety.',
-  keywords: ['soulcache', 'data fetching', 'caching', 'react', 'typescript', 'query', 'state management', 'cache', 'hooks'],
+  description: 'A high-performance runtime for data fetching and caching. Zero runtime dependencies. Full type safety. Framework-agnostic.',
+  keywords: ['soulcache', 'data fetching', 'caching', 'react', 'typescript', 'query', 'state management', 'cache', 'hooks', 'ssr', 'hydration'],
   authors: [{ name: 'SoulCache Contributors' }],
   creator: 'SoulCache',
   publisher: 'SoulCache',
@@ -24,20 +21,13 @@ export const metadata: Metadata = {
     url: BASE_URL,
     siteName: 'SoulCache',
     title: 'SoulCache - TypeScript Data Fetching & Caching Runtime',
-    description: 'A lightweight, framework-agnostic data fetching and caching runtime for TypeScript applications.',
-    images: [
-      {
-        url: OG_IMAGE_URL,
-        width: 512,
-        height: 512,
-        alt: 'SoulCache',
-      },
-    ],
+    description: 'A high-performance runtime for data fetching and caching.',
+    images: [{ url: OG_IMAGE_URL, width: 512, height: 512, alt: 'SoulCache' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'SoulCache - TypeScript Data Fetching & Caching Runtime',
-    description: 'A lightweight, framework-agnostic data fetching and caching runtime for TypeScript applications.',
+    description: 'A high-performance runtime for data fetching and caching.',
     images: [OG_IMAGE_URL],
   },
   robots: {
@@ -52,24 +42,21 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: '/favicon.ico',
-    shortcut: '/favicon-16x16.png',
-    apple: '/apple-touch-icon.png',
+    icon: [
+      { url: LOGO_URL, type: 'image/svg+xml' },
+    ],
+    shortcut: LOGO_URL,
+    apple: LOGO_URL,
   },
   manifest: '/manifest.json',
-  alternates: {
-    canonical: BASE_URL,
-  },
+  alternates: { canonical: BASE_URL },
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link rel="icon" href={LOGO_URL} type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
@@ -84,7 +71,7 @@ export default function RootLayout({
               '@type': 'SoftwareSourceCode',
               name: 'SoulCache',
               url: BASE_URL,
-              description: 'TypeScript Data Fetching & Caching Runtime for Modern Applications',
+              description: 'A high-performance runtime for data fetching and caching',
               license: 'https://opensource.org/licenses/MIT',
               programmingLanguage: 'TypeScript',
               runtimePlatform: 'Node.js',
@@ -92,16 +79,17 @@ export default function RootLayout({
             }),
           }}
         />
-      </head>
-      <body className="font-sans antialiased">
-        <RootProvider
-          search={{
-            enabled: true,
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme:dark)').matches))document.documentElement.classList.add('dark')}catch(e){}})()`,
           }}
-        >
+        />
+      </head>
+      <body className="font-sans antialiased bg-background text-foreground">
+        <RootProvider search={{ enabled: false }}>
           {children}
-          <BackToTop />
         </RootProvider>
+        <SplashScreen />
       </body>
     </html>
   );

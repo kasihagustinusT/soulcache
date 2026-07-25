@@ -31,8 +31,8 @@ Query functions fetch your data:
 ```typescript
 const data = await client.fetchQuery({
   queryKey: ['users'],
-  queryFn: async ({ signal }) => {
-    const response = await fetch('/api/users', { signal });
+  queryFn: async () => {
+    const response = await fetch('/api/users');
     return response.json();
   },
 });
@@ -44,11 +44,13 @@ Queries go through several states:
 
 | State | Description |
 |-------|-------------|
-| `idle` | Initial state |
-| `loading` | Currently fetching |
+| `idle` | Initial state, no fetch in progress |
+| `loading` | Currently fetching for the first time |
 | `success` | Data available |
 | `error` | Fetch failed |
-| `fetching` | Background refetch |
+| `fetching` | Background refetch in progress (stale data available) |
+
+The `fetchStatus` property tracks background refetching separately from the main `status`.
 
 ### Usage
 

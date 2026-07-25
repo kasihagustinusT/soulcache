@@ -34,26 +34,43 @@ Errors are classified into categories:
 
 #### Configure Retry Count
 
-```typescript
-import { QueryClient } from '@soulcache/core';
+<Note type="info" title="QueryEngine for Query Retries">
+Query-level retry is available via `QueryEngine.executeQuery()`. `QueryClient.fetchQuery()` does not support retry configuration.
+</Note>
 
-const client = new QueryClient({
-  defaultOptions: {
-    retry: 3,
+```typescript
+import { QueryEngine } from '@soulcache/core/query';
+
+const engine = new QueryEngine({
+  staleTime: 5000,
+});
+
+// Queries via QueryEngine get automatic retry
+const data = await engine.executeQuery({
+  queryKey: ['flaky-api'],
+  queryFn: async (signal) => {
+    const res = await fetch('/api/flaky', { signal });
+    return res.json();
   },
+  retry: { maxRetries: 3, baseDelay: 1000 },
 });
 ```
 
-#### Automatic Retry
+#### Mutation Retry
 
-SoulCache automatically retries failed requests up to the configured limit:
+Use `MutationEntry.mutateWithRetry()` for automatic retry on mutations:
 
 ```typescript
-// Automatically retries up to 3 times (default)
-const data = await client.fetchQuery({
-  queryKey: ['flaky-api'],
-  queryFn: fetchFlakyData,
+const entry = client.getMutationCache().create({
+  mutationId: 'mut-1',
+  mutationFn: async (vars) => {
+    const res = await fetch('/api/data', { method: 'POST', body: JSON.stringify(vars) });
+    return res.json();
+  },
 });
+
+// Retries up to 3 times with 1000ms delay
+const data = await entry.mutateWithRetry({ name: 'John' }, 3, 1000);
 ```
 
 #### Jitter

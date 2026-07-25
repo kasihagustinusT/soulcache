@@ -7,14 +7,14 @@ interface ApiTableProps {
 
 export function ApiTable({ headers, rows }: ApiTableProps) {
   return (
-    <div className="my-6 overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800">
+    <div className="my-6 overflow-x-auto rounded-xl border border-border">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
+          <tr className="border-b border-border bg-muted/50">
             {headers.map((header) => (
               <th
                 key={header}
-                className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+                className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground"
               >
                 {header}
               </th>
@@ -25,10 +25,10 @@ export function ApiTable({ headers, rows }: ApiTableProps) {
           {rows.map((row, i) => (
             <tr
               key={i}
-              className="border-b border-gray-100 dark:border-gray-800/50 last:border-0"
+              className="border-b border-border last:border-0"
             >
               {row.map((cell, j) => (
-                <td key={j} className="px-4 py-3 text-gray-700 dark:text-gray-300">
+                <td key={j} className="px-4 py-3 text-foreground">
                   {cell}
                 </td>
               ))}

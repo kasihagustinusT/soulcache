@@ -25,8 +25,7 @@ new QueryClient(config?: QueryClientConfig)
 |-----------|------|---------|-------------|
 | `config.defaultOptions.staleTime` | `number` | `300000` (5 min) | Time before data is stale |
 | `config.defaultOptions.gcTime` | `number` | `1800000` (30 min) | Time before garbage collection |
-| `config.defaultOptions.retry` | `number` | `3` | Default retry count |
-| `config.logger` | `Logger` | `console` | Custom logger |
+| `config.logger` | `Logger` | `undefined` | Custom logger implementing `{ info, warn, error, debug }` |
 
 ### Properties
 
@@ -101,8 +100,6 @@ mutate<TData, TVariables = void>(options: {
   onSuccess?: (data: TData, variables: TVariables) => void;
   onError?: (error: Error, variables: TVariables) => void;
   onSettled?: (data: TData | undefined, error: Error | null, variables: TVariables) => void;
-  retry?: number;
-  retryDelay?: number;
 }): Promise<TData>
 ```
 

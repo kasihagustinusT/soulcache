@@ -39,7 +39,6 @@ import { StorageManager, createMemoryAdapter } from '@soulcache/core';
 const storage = new StorageManager({
   adapter: createMemoryAdapter(),
   prefix: 'soulcache',
-  debounceMs: 300,
 });
 
 await storage.initialize();
@@ -49,11 +48,30 @@ await storage.initialize();
 
 | Adapter | Description |
 |---------|-------------|
-| `MemoryAdapter` | Default in-memory storage |
-| LocalStorage | Browser local storage |
-| SessionStorage | Browser session storage |
-| IndexedDB | Browser IndexedDB |
-| AsyncStorage | React Native AsyncStorage |
+| `MemoryAdapter` | Default in-memory storage, suitable for most use cases |
+
+### Custom Adapters
+
+Implement the `StorageAdapter` interface to create custom adapters:
+
+```typescript
+import type { StorageAdapter } from '@soulcache/core';
+
+const customAdapter: StorageAdapter = {
+  name: 'custom',
+  async get(key) { /* ... */ },
+  async set(key, value) { /* ... */ },
+  async delete(key) { /* ... */ },
+  async clear() { /* ... */ },
+  async has(key) { /* ... */ },
+  async keys() { /* ... */ },
+  async getSize() { /* ... */ },
+  async getUsage() { /* ... */ },
+  async initialize() { /* ... */ },
+  async dispose() { /* ... */ },
+  isReady() { return true; },
+};
+```
 
 ### Features
 

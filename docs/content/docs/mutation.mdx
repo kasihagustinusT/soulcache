@@ -39,7 +39,7 @@ const result = await client.mutate({
 const result = await client.mutate({
   mutationFn: createUser,
   variables: { name: 'John' },
-  onMutate: async (variables) => {
+  onMutate: (variables) => {
     // Optimistic update - return context
     client.setQueryData(['users'], (old) => [...old, variables]);
     return { previous: client.getQueryData(['users']) };
@@ -59,13 +59,22 @@ const result = await client.mutate({
 
 #### With Retry
 
+<Note type="warning" title="Experimental">
+The `retry` and `retryDelay` parameters are accepted by `QueryClient.mutate()` but are not currently passed through to `MutationEntry`. Use `MutationEntry.mutateWithRetry()` directly for retry behavior.
+</Note>
+
 ```typescript
-const result = await client.mutate({
+// Using MutationEntry directly for retry
+const entry = client.getMutationCache().create({
+  mutationId: 'mut-1',
   mutationFn: createUser,
-  variables: { name: 'John' },
-  retry: 3,
-  retryDelay: 1000,
 });
+
+const result = await entry.mutateWithRetry(
+  { name: 'John' },
+  3,   // maxRetries
+  1000 // retryDelay (ms)
+);
 ```
 
 ### Optimistic Updates
@@ -76,7 +85,7 @@ Optimistically update cache before server confirms:
 await client.mutate({
   mutationFn: updateUser,
   variables: { id: 1, name: 'Jane' },
-  onMutate: async (variables) => {
+  onMutate: (variables) => {
     // Snapshot previous value
     const previous = client.getQueryData(['users']);
 
@@ -88,9 +97,9 @@ await client.mutate({
     // Return context with snapshot
     return { previous };
   },
-  onError: (err, variables, context) => {
-    // Rollback on error
-    client.setQueryData(['users'], context.previous);
+  onError: (error, variables) => {
+    // Rollback on error (access context via closure)
+    client.setQueryData(['users'], previousData);
   },
   onSettled: () => {
     // Refetch after error or success

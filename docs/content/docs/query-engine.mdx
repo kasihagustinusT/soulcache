@@ -1,23 +1,48 @@
 ---
 title: Query Engine
-description: API Reference for the QueryEngine (internal orchestrator)
+description: API Reference for the QueryEngine (higher-level orchestrator)
 ---
 
 ## QueryEngine
 
-The QueryEngine is an internal orchestrator that manages query lifecycle, caching, and observer coordination. It is accessed indirectly through `QueryClient`.
+The QueryEngine is a higher-level orchestrator that wraps `QueryClient` with additional features like automatic retry (via `RetryEngine`), background refetch intervals, and stale-time-aware cache reads.
 
 ### Access
 
 ```typescript
-import { QueryClient } from '@soulcache/core';
+import { QueryEngine } from '@soulcache/core/query';
 
-const client = new QueryClient();
-// QueryEngine is used internally — use QueryClient methods directly
+const engine = new QueryEngine({
+  staleTime: 5000,
+  refetchInterval: 30000,
+});
+
+// Execute with retry support
+const data = await engine.executeQuery({
+  queryKey: ['users'],
+  queryFn: async (signal) => {
+    const res = await fetch('/api/users', { signal });
+    return res.json();
+  },
+  retry: { maxRetries: 3, baseDelay: 1000 },
+});
+
+// Access underlying QueryClient
+const client = engine.client;
 ```
+
+### Key Differences from QueryClient
+
+| Feature | QueryClient | QueryEngine |
+|---------|-------------|-------------|
+| Retry support | No | Yes (via RetryEngine) |
+| Background refetch | No | Yes (via `refetchInterval`) |
+| Stale-time-aware reads | No | Yes (via `staleTime` option) |
+| Abort signal support | No | Yes (passed to `queryFn`) |
 
 ### Related
 
 - [QueryClient](/docs/query-client) — Primary user-facing API
+- [RetryEngine](/docs/retry-engine) — Internal retry logic
 - [Cache System](/docs/cache-system)
 - [Architecture](/docs/architecture)

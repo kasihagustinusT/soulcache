@@ -28,19 +28,19 @@ export function FeatureGrid({ children, columns = 3 }: FeatureGridProps) {
 
 export function FeatureCard({ title, description, icon, href }: FeatureCardProps) {
   const className =
-    'group rounded-xl border border-gray-200 dark:border-gray-800 p-6 transition-all hover:border-primary-300 dark:hover:border-primary-700 hover:shadow-lg hover:shadow-primary-600/5 dark:hover:shadow-primary-500/5 bg-white dark:bg-gray-900/50';
+    'group relative rounded-xl border border-border bg-card p-6 transition-all duration-200 hover:border-primary/40 hover:shadow-lg';
 
   const content = (
     <>
       {icon && (
-        <div className="mb-3 text-primary-600 dark:text-primary-400">
+        <div className="mb-3 text-primary">
           {icon}
         </div>
       )}
-      <h3 className="mb-2 text-base font-semibold text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+      <h3 className="mb-2 text-[0.95rem] font-semibold text-foreground group-hover:text-primary transition-colors">
         {title}
       </h3>
-      <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-400">
+      <p className="text-[0.875rem] leading-relaxed text-muted-foreground">
         {description}
       </p>
     </>

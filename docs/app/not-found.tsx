@@ -1,12 +1,12 @@
 import Link from 'next/link';
 
-export default function DocsNotFound() {
+export default function NotFound() {
   return (
-    <div className="flex min-h-[50vh] flex-col items-center justify-center px-6">
+    <div className="flex min-h-screen flex-col items-center justify-center px-6">
       <div className="text-center">
         <h1 className="text-6xl font-bold text-foreground tracking-tight">404</h1>
         <p className="mt-4 text-lg text-muted-foreground">
-          Documentation page not found
+          Page not found
         </p>
         <p className="mt-2 text-sm text-muted-foreground">
           The page you are looking for does not exist or has been moved.

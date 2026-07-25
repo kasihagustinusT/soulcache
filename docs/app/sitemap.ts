@@ -1,7 +1,6 @@
 import { MetadataRoute } from 'next';
 import { source } from '@/lib/source';
-
-const BASE_URL = 'https://soulcache.vercel.app';
+import { BASE_URL } from '@/lib/constants';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const staticPages: MetadataRoute.Sitemap = [

@@ -1,0 +1,6 @@
+.vercel
+.next
+node_modules
+.source
+tsconfig.tsbuildinfo
+*.tsbuildinfo
