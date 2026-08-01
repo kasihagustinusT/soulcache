@@ -120,6 +120,15 @@ export class Scheduler {
   private _destroyed: boolean = false;
   private _flushing: boolean = false;
 
+  /** Completed dependency IDs that survive cleanup so dependents can resolve. */
+  private readonly _completedDeps: Set<string> = new Set();
+
+  /** FIFO insertion order for _completedDeps eviction */
+  private readonly _completedDepsOrder: string[] = [];
+
+  /** Maximum entries in _completedDeps before FIFO eviction (2x max queue) */
+  private _maxCompletedDeps: number = 0;
+
   // Metrics — cached counters for O(1) access
   private _totalScheduled: number = 0;
   private _totalCompleted: number = 0;
@@ -131,6 +140,7 @@ export class Scheduler {
 
   constructor(options?: SchedulerOptions) {
     this._maxQueueSize = options?.maxQueueSize ?? 10000;
+    this._maxCompletedDeps = this._maxQueueSize * 2;
     this._eventBus = options?.eventBus;
 
     // Initialize priority queues
@@ -359,8 +369,10 @@ export class Scheduler {
 
         // Check dependencies
         if (!this._dependenciesMet(task)) {
-          // Re-queue at the end of its priority level
-          this._queues.get(task.priority)!.push(taskId);
+          // Re-queue only if still queued (skip cancelled tasks)
+          if (task.status === 'queued') {
+            this._queues.get(task.priority)!.push(taskId);
+          }
           continue;
         }
 
@@ -430,7 +442,9 @@ export class Scheduler {
         if (!task || task.status !== 'queued') continue;
 
         if (!this._dependenciesMet(task)) {
-          this._queues.get(task.priority)!.push(taskId);
+          if (task.status === 'queued') {
+            this._queues.get(task.priority)!.push(taskId);
+          }
           continue;
         }
 
@@ -490,7 +504,9 @@ export class Scheduler {
         if (!task || task.status !== 'queued') continue;
 
         if (!this._dependenciesMet(task)) {
-          this._queues.get(task.priority)!.push(taskId);
+          if (task.status === 'queued') {
+            this._queues.get(task.priority)!.push(taskId);
+          }
           continue;
         }
 
@@ -527,6 +543,8 @@ export class Scheduler {
     }
 
     this._tasks.clear();
+    this._completedDeps.clear();
+    this._completedDepsOrder.length = 0;
     this._emit('scheduler.destroyed', {});
   }
 
@@ -604,9 +622,27 @@ export class Scheduler {
   private _dependenciesMet(task: ScheduledTask): boolean {
     for (const depId of task.dependencies) {
       const dep = this._tasks.get(depId);
-      if (!dep || dep.status !== 'completed') {
+
+      if (!dep) {
+        if (this._completedDeps.has(depId)) {
+          continue;
+        }
+        task.status = 'cancelled';
+        this._totalCancelled++;
         return false;
       }
+
+      if (dep.status === 'completed') {
+        continue;
+      }
+
+      if (dep.status === 'failed' || dep.status === 'cancelled') {
+        task.status = 'cancelled';
+        this._totalCancelled++;
+        return false;
+      }
+
+      return false;
     }
     return true;
   }
@@ -682,13 +718,26 @@ export class Scheduler {
    * R-1: Guards against completion after destroy().
    */
   private _completeTask(task: ScheduledTask): void {
+    // Always decrement — every executed task must decrement exactly once
+    this._activeTaskCount--;
+
     // R-1: If scheduler was destroyed while async task was in-flight, silently drop
     if (this._destroyed) return;
 
     task.status = 'completed';
     task.completedAt = Date.now();
     this._totalCompleted++;
-    this._activeTaskCount--;
+    this._completedDeps.add(task.id);
+    this._completedDepsOrder.push(task.id);
+
+    // FIFO eviction: cap _completedDeps at 2x maxQueueSize to prevent
+    // unbounded memory growth from long-lived scheduler instances.
+    if (this._completedDeps.size > this._maxCompletedDeps) {
+      const oldest = this._completedDepsOrder.shift();
+      if (oldest !== undefined) {
+        this._completedDeps.delete(oldest);
+      }
+    }
 
     this._emit('scheduler.task-completed', {
       taskId: task.id,
@@ -703,6 +752,9 @@ export class Scheduler {
    * R-1: Guards against failure after destroy().
    */
   private _failTask(task: ScheduledTask, error: Error): void {
+    // Always decrement — every executed task must decrement exactly once
+    this._activeTaskCount--;
+
     // R-1: If scheduler was destroyed while async task was in-flight, silently drop
     if (this._destroyed) return;
 
@@ -710,7 +762,6 @@ export class Scheduler {
     task.completedAt = Date.now();
     task.error = error;
     this._totalFailed++;
-    this._activeTaskCount--;
 
     this._emit('scheduler.task-failed', {
       taskId: task.id,
@@ -726,7 +777,7 @@ export class Scheduler {
     const toRemove: string[] = [];
 
     for (const [id, task] of this._tasks) {
-      if (task.status === 'completed' || task.status === 'cancelled') {
+      if (task.status === 'completed' || task.status === 'cancelled' || task.status === 'failed') {
         toRemove.push(id);
       }
     }

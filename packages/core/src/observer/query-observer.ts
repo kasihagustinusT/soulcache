@@ -1,35 +1,10 @@
 import type { QuerySnapshot, Observer } from '../types/observer.types';
 import type { QueryRecordState } from '../types/internal.types';
-import type { QueryStatus, FetchStatus } from '../types/query.types';
+import type { FetchStatus } from '../types/query.types';
 import type { EventBus } from '../events/event-bus';
 import { RuntimeError } from '../errors/soulcache-error';
 import { ErrorCode } from '../errors/error-codes';
-import { generateId } from '../utils/query.utils';
-
-/**
- * Map internal QueryRecordState to public QueryStatus.
- */
-function mapStateToStatus(state: QueryRecordState): QueryStatus {
-  switch (state) {
-    case 'idle':
-      return 'idle';
-    case 'pending':
-    case 'fetching':
-      return 'loading';
-    case 'success':
-      return 'success';
-    case 'error':
-      return 'error';
-    case 'stale':
-      return 'fetching';
-    case 'invalidated':
-      return 'loading';
-    case 'destroyed':
-      return 'idle';
-    default:
-      return 'idle';
-  }
-}
+import { generateId, mapStateToStatus } from '../utils/query.utils';
 
 /**
  * Query Observer Options

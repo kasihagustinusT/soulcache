@@ -12,9 +12,9 @@ const VALID_TRANSITIONS: Record<QueryRecordState, ReadonlySet<QueryRecordState>>
   pending: new Set(['fetching', 'idle', 'error', 'destroyed']),
   fetching: new Set(['success', 'error', 'idle', 'destroyed']),
   success: new Set(['stale', 'fetching', 'invalidated', 'destroyed']),
-  error: new Set(['pending', 'invalidated', 'destroyed']),
-  stale: new Set(['fetching', 'invalidated', 'destroyed']),
-  invalidated: new Set(['pending', 'destroyed']),
+  error: new Set(['pending', 'invalidated', 'success', 'destroyed']),
+  stale: new Set(['fetching', 'invalidated', 'success', 'destroyed']),
+  invalidated: new Set(['pending', 'success', 'destroyed']),
   destroyed: new Set(),
 };
 

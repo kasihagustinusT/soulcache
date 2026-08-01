@@ -248,5 +248,52 @@ describe('QueryEngine', () => {
       queryEngine.destroy();
       vi.useRealTimers();
     });
+
+    it('should not delete stale refetchFns entry when .catch fires after replacement', async () => {
+      vi.useFakeTimers();
+
+      const queryEngine = new QueryEngine({ refetchInterval: 1000 });
+
+      let resolveRefetch: ((v: unknown) => void) | undefined;
+      const refetchPromise = new Promise((r) => { resolveRefetch = r; });
+      let callCount = 0;
+      const queryFn = vi.fn().mockImplementation(async () => {
+        callCount++;
+        if (callCount === 1) return { name: 'Alice' };
+        await refetchPromise;
+        throw new Error('refetch fails');
+      });
+
+      // Establish cache entry and schedule refetch
+      await queryEngine.executeQuery({
+        queryKey: ['users'],
+        queryFn,
+        retry: { maxRetries: 0 },
+      });
+      expect(callCount).toBe(1);
+
+      // Advance time to fire refetch timer — refetch starts and awaits refetchPromise
+      await vi.advanceTimersByTimeAsync(1100);
+      expect(callCount).toBe(2);
+
+      // While refetch is in-flight, replace the _refetchFns entry
+      const keyHash = JSON.stringify(['users']);
+      const refetchFns = (queryEngine as unknown as { _refetchFns: Map<string, { queryFn: Function }> })._refetchFns;
+      const newQueryFn = vi.fn(async () => ({ name: 'Bob' }));
+      refetchFns.set(keyHash, { queryFn: newQueryFn });
+
+      // Resolve the failing refetch
+      resolveRefetch!(undefined);
+      // Let microtasks settle
+      await vi.advanceTimersByTimeAsync(10);
+
+      // The .catch should NOT have deleted the new entry because
+      // current (newQueryFn) !== refetch (old entry from closure)
+      expect(refetchFns.size).toBe(1);
+      expect(refetchFns.get(keyHash)!.queryFn).toBe(newQueryFn);
+
+      queryEngine.destroy();
+      vi.useRealTimers();
+    });
   });
 });

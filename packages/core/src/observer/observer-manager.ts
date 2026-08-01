@@ -79,8 +79,8 @@ export class ObserverManager {
   /** All observers by ID for lifecycle management */
   private readonly observers: Map<string, QueryObserver> = new Map();
 
-  /** Pending notification key hashes (for batching) */
-  private readonly pendingKeys: Set<string> = new Set();
+  /** Pending notification key hashes → update data (for batching) */
+  private readonly pendingUpdates: Map<string, Partial<Omit<QuerySnapshot<unknown>, 'queryId'>>> = new Map();
 
   /** Batch flush timer */
   private flushTimer: ReturnType<typeof setTimeout> | undefined;
@@ -157,7 +157,7 @@ export class ObserverManager {
     if (observers === undefined || observers.size === 0) return;
 
     if (this.batchInterval > 0) {
-      this.pendingKeys.add(keyHash);
+      this.pendingUpdates.set(keyHash, update);
       this.scheduleFlush();
     } else {
       this.flushObservers(keyHash, update);
@@ -185,17 +185,20 @@ export class ObserverManager {
       this.flushTimer = undefined;
     }
 
-    const keys = [...this.pendingKeys];
-    this.pendingKeys.clear();
+    const entries = [...this.pendingUpdates.entries()];
+    this.pendingUpdates.clear();
 
-    for (const keyHash of keys) {
+    for (const [keyHash, update] of entries) {
       const observers = this.registry.get(keyHash);
       if (observers !== undefined) {
         for (const observer of observers) {
           if (!observer.isDestroyed) {
-            // For batch flush, we don't have specific update data.
-            // Observers will use their current snapshot.
-            this._totalNotifications++;
+            try {
+              observer.update(update);
+              this._totalNotifications++;
+            } catch (_error) {
+              // Per-observer error isolation
+            }
           }
         }
       }
@@ -279,7 +282,7 @@ export class ObserverManager {
 
     this.observers.clear();
     this.registry.clear();
-    this.pendingKeys.clear();
+    this.pendingUpdates.clear();
   }
 
   /**
@@ -301,15 +304,20 @@ export class ObserverManager {
     for (const observer of observers) {
       if (observer.isDestroyed) continue;
 
-      const prev = observer.getSnapshot();
-      observer.update(update);
-      const next = observer.getSnapshot();
+      try {
+        const prev = observer.getSnapshot();
+        observer.update(update);
+        const next = observer.getSnapshot();
 
-      if (this.snapshotsEqual(prev, next)) {
-        this._duplicatesPrevented++;
+        if (this.snapshotsEqual(prev, next)) {
+          this._duplicatesPrevented++;
+        }
+
+        this._totalNotifications++;
+      } catch (_error) {
+        // Per-observer error isolation: one observer's failure must not
+        // prevent delivery to other independent observers for the same key.
       }
-
-      this._totalNotifications++;
     }
   }
 
@@ -344,16 +352,21 @@ export class ObserverManager {
   }
 
   private flushPending(): void {
-    const keys = [...this.pendingKeys];
-    this.pendingKeys.clear();
+    const entries = [...this.pendingUpdates.entries()];
+    this.pendingUpdates.clear();
     this._totalFlushes++;
 
-    for (const keyHash of keys) {
+    for (const [keyHash, update] of entries) {
       const observers = this.registry.get(keyHash);
       if (observers !== undefined) {
         for (const observer of observers) {
           if (!observer.isDestroyed) {
-            this._totalNotifications++;
+            try {
+              observer.update(update);
+              this._totalNotifications++;
+            } catch (_error) {
+              // Per-observer error isolation
+            }
           }
         }
       }

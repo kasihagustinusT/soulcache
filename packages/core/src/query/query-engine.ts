@@ -58,7 +58,10 @@ export class QueryEngine {
     this._refetchInterval = options?.refetchInterval ?? 0;
     this._staleTime = options?.staleTime ?? 0;
 
-    this._client = new QueryClient(options?.clientConfig);
+    const clientConfig = options?.clientConfig
+      ? { ...options.clientConfig, onRemoveQuery: (_keyHash: string, queryKey: QueryKey) => { this.cancelQuery(queryKey); } }
+      : { onRemoveQuery: (_keyHash: string, queryKey: QueryKey) => { this.cancelQuery(queryKey); } };
+    this._client = new QueryClient(clientConfig);
     this._retryEngine = new RetryEngine();
   }
 
@@ -94,6 +97,7 @@ export class QueryEngine {
 
     this._cacheMisses++;
 
+    this.cancelRefetch(queryKey);
     this.cancelExistingFetch(queryKey);
 
     const controller = new AbortController();
@@ -134,7 +138,9 @@ export class QueryEngine {
 
       return result.data as T;
     } finally {
-      this._abortControllers.delete(keyHash);
+      if (this._abortControllers.get(keyHash) === controller) {
+        this._abortControllers.delete(keyHash);
+      }
     }
   }
 
@@ -226,6 +232,11 @@ export class QueryEngine {
       this._refetchTimers.delete(keyHash);
 
       if (this._destroyed) return;
+
+      if (!this._client.getCache().has(queryKey)) {
+        this._refetchFns.delete(keyHash);
+        return;
+      }
 
       const refetch = this._refetchFns.get(keyHash);
       if (refetch) {

@@ -230,35 +230,38 @@ export class RetryEngine {
     let lastError: Error | undefined;
     const totalAttempts = mergedConfig.maxRetries + 1;
 
-    for (let attempt = 0; attempt < totalAttempts; attempt++) {
-      if (signal?.aborted) {
-        const abortError = new DOMException('Aborted', 'AbortError');
-        this.emit('retry:cancelled', key, this.buildContext(
-          attempt, totalAttempts, abortError, 'abort', 0, startedAt,
-        ));
-        return {
-          success: false,
-          error: abortError,
-          attempts: attempt,
-          elapsed: Date.now() - startedAt,
-        };
-      }
+    const keyHash = this.hashKey(key);
 
+    // Clean up stale metadata from a previous aborted session
+    if (signal?.aborted) {
+      this.metadata.delete(keyHash);
+      const abortError = new DOMException('Aborted', 'AbortError');
+      this.emit('retry:cancelled', key, this.buildContext(
+        0, totalAttempts, abortError, 'abort', 0, startedAt, key,
+      ));
+      return {
+        success: false,
+        error: abortError,
+        attempts: 0,
+        elapsed: Date.now() - startedAt,
+      };
+    }
+
+    for (let attempt = 0; attempt < totalAttempts; attempt++) {
       const controller = new AbortController();
+      let abortListener: (() => void) | null = null;
 
       if (signal !== undefined) {
-        if (signal.aborted) {
-          controller.abort();
-        } else {
-          signal.addEventListener('abort', () => controller.abort(), { once: true });
-        }
+        abortListener = () => controller.abort();
+        signal.addEventListener('abort', abortListener);
       }
 
       try {
         const data = await fn(attempt, controller.signal);
+        if (abortListener) signal?.removeEventListener('abort', abortListener);
         this.resetCount(key);
         this.emit('retry:success', key, this.buildContext(
-          attempt, totalAttempts, new Error('success'), 'unknown', 0, startedAt,
+          attempt, totalAttempts, new Error('success'), 'unknown', 0, startedAt, key,
         ));
         return {
           success: true,
@@ -267,7 +270,7 @@ export class RetryEngine {
           elapsed: Date.now() - startedAt,
         };
       } catch (rawError) {
-        controller.abort();
+        if (abortListener) signal?.removeEventListener('abort', abortListener);
         const error = rawError instanceof Error ? rawError : new Error(String(rawError));
         const errorClass = this.classifyError(error);
         lastError = error;
@@ -275,11 +278,12 @@ export class RetryEngine {
         this.incrementAttempt(key, error, errorClass);
 
         const context = this.buildContext(
-          attempt, totalAttempts, error, errorClass, 0, startedAt,
+          attempt, totalAttempts, error, errorClass, 0, startedAt, key,
         );
         this.emit('retry:attempt', key, context);
 
         if (!this.shouldRetry(error, attempt, mergedConfig)) {
+          this.metadata.delete(keyHash);
           this.emit('retry:exhausted', key, context);
           return {
             success: false,
@@ -291,13 +295,14 @@ export class RetryEngine {
 
         const delay = this.calculateDelay(attempt + 1, mergedConfig);
         const delayContext = this.buildContext(
-          attempt + 1, totalAttempts, error, errorClass, delay, startedAt,
+          attempt + 1, totalAttempts, error, errorClass, delay, startedAt, key,
         );
         this.emit('retry:delay', key, delayContext);
 
         if (mergedConfig.timeout !== undefined && mergedConfig.timeout > 0) {
           const elapsed = Date.now() - startedAt;
           if (elapsed + delay > mergedConfig.timeout) {
+            this.metadata.delete(keyHash);
             this.emit('retry:exhausted', key, delayContext);
             return {
               success: false,
@@ -309,11 +314,12 @@ export class RetryEngine {
         }
 
         if (delay > 0) {
-          await sleep(delay);
+          await sleep(delay, signal);
           if (signal?.aborted) {
+            this.metadata.delete(keyHash);
             const abortError = new DOMException('Aborted', 'AbortError');
             this.emit('retry:cancelled', key, this.buildContext(
-              attempt + 1, totalAttempts, abortError, 'abort', 0, startedAt,
+              attempt + 1, totalAttempts, abortError, 'abort', 0, startedAt, key,
             ));
             return {
               success: false,
@@ -325,6 +331,8 @@ export class RetryEngine {
         }
       }
     }
+
+    this.metadata.delete(keyHash);
 
     return {
       success: false,
@@ -397,6 +405,7 @@ export class RetryEngine {
     errorClass: ErrorClass,
     delay: number,
     startedAt: number,
+    key: QueryKey,
   ): RetryContext {
     return {
       attempt,
@@ -404,7 +413,7 @@ export class RetryEngine {
       error,
       errorClass,
       delay,
-      key: [],
+      key,
       elapsed: Date.now() - startedAt,
       startedAt,
     };
@@ -426,10 +435,27 @@ export class RetryEngine {
 /**
  * Sleep
  *
- * Promise-based delay. No signal handling — abort is checked in the caller's loop.
+ * Promise-based delay with optional abort signal.
+ * Returns immediately when the signal is aborted.
  */
-function sleep(ms: number): Promise<void> {
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise<void>((resolve) => {
-    setTimeout(resolve, ms);
+    if (signal?.aborted) {
+      resolve();
+      return;
+    }
+    let onAbort: (() => void) | undefined;
+    const timer = setTimeout(() => {
+      if (onAbort && signal) signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    if (signal) {
+      onAbort = () => {
+        clearTimeout(timer);
+        if (signal) signal.removeEventListener('abort', onAbort!);
+        resolve();
+      };
+      signal.addEventListener('abort', onAbort);
+    }
   });
 }
