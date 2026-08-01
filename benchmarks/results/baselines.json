@@ -1,41 +1,51 @@
 {
   "fingerprint": "android-arm64-unknown-node24.15.0",
-  "recordedAt": 1785554455005,
+  "recordedAt": 1785557790523,
   "benchmarks": {
     "cache.set (1000 writes)": {
-      "opsPerSecond": 43.082048456761484,
-      "p95Ms": 25.65567699999997,
-      "recordedAt": 1785554454945
+      "opsPerSecond": 33.31219858660529,
+      "p95Ms": 32.56505199999992,
+      "recordedAt": 1785557790360
     },
     "cache.get (1000 reads)": {
-      "opsPerSecond": 35.45386866662177,
-      "p95Ms": 31.29083400000036,
-      "recordedAt": 1785554454946
+      "opsPerSecond": 23.587529617280694,
+      "p95Ms": 45.63041700000031,
+      "recordedAt": 1785557790360
     },
     "queryEngine.executeQuery (cache hit)": {
-      "opsPerSecond": 4584.024317701075,
-      "p95Ms": 0.3948439999985567,
-      "recordedAt": 1785554455004
+      "opsPerSecond": 4548.598040209862,
+      "p95Ms": 0.35572899999988294,
+      "recordedAt": 1785557790519
     },
     "observerManager.createObserver (100 observers)": {
-      "opsPerSecond": 750.9299140591082,
-      "p95Ms": 1.5538020000003598,
-      "recordedAt": 1785554455004
+      "opsPerSecond": 678.2012789085691,
+      "p95Ms": 1.8225000000002183,
+      "recordedAt": 1785557790519
     },
     "observerManager.notify (100 observers)": {
-      "opsPerSecond": 646.0347877070765,
-      "p95Ms": 1.8740100000004531,
-      "recordedAt": 1785554455004
+      "opsPerSecond": 558.2112642522786,
+      "p95Ms": 2.1718229999996765,
+      "recordedAt": 1785557790519
     },
     "pluginManager.register (100 plugins)": {
-      "opsPerSecond": 3857.8999644990627,
-      "p95Ms": 0.3455730000005133,
-      "recordedAt": 1785554455005
+      "opsPerSecond": 4577.09601017212,
+      "p95Ms": 0.32421900000008463,
+      "recordedAt": 1785557790520
     },
     "retryEngine.classifyError (1000 classifications)": {
-      "opsPerSecond": 2311.4234429744947,
-      "p95Ms": 0.8746350000001257,
-      "recordedAt": 1785554455005
+      "opsPerSecond": 2742.633820372713,
+      "p95Ms": 0.6177079999997659,
+      "recordedAt": 1785557790521
+    },
+    "dehydrate+hydrate (1000 entries)": {
+      "opsPerSecond": 14.31895793941676,
+      "p95Ms": 75.08468700000049,
+      "recordedAt": 1785557790522
+    },
+    "core.dist.bundle.gzipBytes": {
+      "opsPerSecond": 0,
+      "p95Ms": 27430,
+      "recordedAt": 1785557790523
     }
   }
 }

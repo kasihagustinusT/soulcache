@@ -6,20 +6,24 @@
  * comparable across environments.
  *
  * Usage:
- *   pnpm bench              # run + record run-*.json (gitignored)
- *   pnpm bench --baseline   # also update benchmarks/results/baselines.json
+ *   pnpm bench               # run + record run-*.json (gitignored)
+ *   pnpm bench --baseline    # also update benchmarks/results/baselines.json
+ *   BENCH_TOLERANCE=loose    # widen regression band for noisy local runners
  *
  * Exit codes:
  *   0 - benchmarks ran cleanly, no regression vs baseline
- *   1 - benchmark failure or regression vs baseline (>10% p95 / <90% ops)
+ *   1 - benchmark failure or regression vs baseline (strict: >10% p95 / <90% ops)
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cpus, platform, arch } from 'node:os';
-import { runAllBenchmarks } from '../packages/core/src/benchmark/index.ts';
+import { gzipSync } from 'node:zlib';
+import { runAllBenchmarks, BenchmarkRunner } from '../packages/core/src/benchmark/index.ts';
 import type { BenchmarkReport, BenchmarkResult } from '../packages/core/src/benchmark/types.ts';
+import { CacheEngine } from '../packages/core/src/cache/cache-engine.ts';
+import { dehydrate, hydrate } from '../packages/core/src/hydration/hydration.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -40,9 +44,15 @@ interface BaselineFile {
   benchmarks: Baselines;
 }
 
-const REGRESSION_P95_MULTIPLIER = 1.1;
-const REGRESSION_OPS_MULTIPLIER = 0.9;
+// Strict thresholds mirror the EVT-1b contract (<= +10% p95). On noisy
+// hardware (e.g. thermally throttled mobile/ARM CI-less runners) a single-run
+// re-baseline can flake; set BENCH_TOLERANCE=loose for a 1.5x p95 / 0.7x ops
+// band. CI keeps the strict default.
+const LOOSE = process.env.BENCH_TOLERANCE === 'loose';
+const REGRESSION_P95_MULTIPLIER = LOOSE ? 1.5 : 1.1;
+const REGRESSION_OPS_MULTIPLIER = LOOSE ? 0.7 : 0.9;
 const BEST_OF_RUNS = 3;
+const BUNDLE_GZIP_MAX_GROWTH_BYTES = 2048;
 
 function machineFingerprint(): string {
   const model = cpus()[0]?.model ?? 'unknown';
@@ -105,8 +115,29 @@ async function main(): Promise<void> {
   const bestBySuite = new Map<string, Map<string, BenchmarkResult>>();
   const suiteOrder: string[] = [];
   let started = performance.now();
+
+  const hydrationRunner = new BenchmarkRunner();
+  const hydrationSuite = {
+    name: 'Hydration',
+    benchmarks: [
+      {
+        name: 'dehydrate+hydrate (1000 entries)',
+        fn: () => {
+          const source = new CacheEngine();
+          for (let i = 0; i < 1000; i++) {
+            source.set({ queryKey: ['h', i], data: { i }, state: 'success' });
+          }
+          const state = dehydrate(source);
+          const target = new CacheEngine();
+          hydrate(target, state);
+        },
+        iterations: 50,
+      },
+    ],
+  };
+
   for (let run = 0; run < BEST_OF_RUNS; run++) {
-    const reports = await runAllBenchmarks();
+    const reports = [...(await runAllBenchmarks()), await hydrationRunner.run(hydrationSuite)];
     for (const report of reports) {
       if (!suiteOrder.includes(report.suiteName)) suiteOrder.push(report.suiteName);
       let suiteBest = bestBySuite.get(report.suiteName);
@@ -122,6 +153,34 @@ async function main(): Promise<void> {
     console.log(
       `  run ${run + 1}/${BEST_OF_RUNS} complete (${((performance.now() - started) / 1000).toFixed(1)}s)`,
     );
+  }
+
+  // Bundle size baseline (F6): gzip bytes of the built core entry.
+  const coreDist = join(ROOT, 'packages', 'core', 'dist', 'index.js');
+  let bundleReport: BenchmarkReport | null = null;
+  if (existsSync(coreDist)) {
+    const gzipBytes = gzipSync(readFileSync(coreDist)).length;
+    const rawBytes = statSync(coreDist).size;
+    bundleReport = {
+      suiteName: 'Bundle',
+      results: [
+        {
+          name: 'core.dist.bundle.gzipBytes',
+          opsPerSecond: 0,
+          meanMs: gzipBytes,
+          medianMs: gzipBytes,
+          p95Ms: gzipBytes,
+          p99Ms: gzipBytes,
+          standardDeviation: 0,
+          iterations: 1,
+          memoryDeltaBytes: rawBytes,
+        },
+      ],
+      timestamp: Date.now(),
+      durationMs: 0,
+    };
+    bestBySuite.set('Bundle', new Map([['core.dist.bundle.gzipBytes', bundleReport.results[0]]]));
+    suiteOrder.push('Bundle');
   }
 
   const reports: BenchmarkReport[] = suiteOrder.map((suiteName) => ({
@@ -163,14 +222,25 @@ async function main(): Promise<void> {
     for (const r of report.results) {
       const previous = nextBaselines[r.name];
       if (previous && baselineMatchesMachine && !updateBaseline) {
-        const p95Ratio = r.p95Ms / previous.p95Ms;
-        const opsRatio = r.opsPerSecond / previous.opsPerSecond;
-        if (p95Ratio > REGRESSION_P95_MULTIPLIER || opsRatio < REGRESSION_OPS_MULTIPLIER) {
-          errors++;
-          console.error(
-            `\n  REGRESSION: ${r.name} p95 ${r.p95Ms.toFixed(3)}ms (baseline ${previous.p95Ms.toFixed(3)}ms, ×${p95Ratio.toFixed(2)}), ` +
-              `ops/s ${fmt(r.opsPerSecond)} (baseline ${fmt(previous.opsPerSecond)}, ×${opsRatio.toFixed(2)})`,
-          );
+        if (r.name === 'core.dist.bundle.gzipBytes') {
+          const delta = r.meanMs - previous.meanMs;
+          if (delta > BUNDLE_GZIP_MAX_GROWTH_BYTES) {
+            errors++;
+            console.error(
+              `\n  REGRESSION: ${r.name} grew by ${delta} bytes gzip ` +
+                `(${previous.meanMs} -> ${r.meanMs}; limit +${BUNDLE_GZIP_MAX_GROWTH_BYTES})`,
+            );
+          }
+        } else {
+          const p95Ratio = r.p95Ms / previous.p95Ms;
+          const opsRatio = r.opsPerSecond / previous.opsPerSecond;
+          if (p95Ratio > REGRESSION_P95_MULTIPLIER || opsRatio < REGRESSION_OPS_MULTIPLIER) {
+            errors++;
+            console.error(
+              `\n  REGRESSION: ${r.name} p95 ${r.p95Ms.toFixed(3)}ms (baseline ${previous.p95Ms.toFixed(3)}ms, ×${p95Ratio.toFixed(2)}), ` +
+                `ops/s ${fmt(r.opsPerSecond)} (baseline ${fmt(previous.opsPerSecond)}, ×${opsRatio.toFixed(2)})`,
+            );
+          }
         }
       }
       nextBaselines[r.name] = {
