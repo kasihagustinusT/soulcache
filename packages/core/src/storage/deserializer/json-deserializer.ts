@@ -17,8 +17,17 @@ import {
 
 /**
  * Supported checksum algorithms.
+ *
+ * Includes the legacy labels for backward compatibility: payloads written by
+ * 1.0.0 used these labels and MUST deserialize without throwing.
  */
-const SUPPORTED_ALGORITHMS: ChecksumAlgorithm[] = ['fast-32'];
+const SUPPORTED_ALGORITHMS: ChecksumAlgorithm[] = [
+  'sha-256',
+  'sha-384',
+  'sha-512',
+  'md5',
+  'fast-32',
+];
 
 /**
  * Current schema version.

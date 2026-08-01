@@ -11,8 +11,17 @@ import { SerializationError } from '../errors';
 
 /**
  * Supported checksum algorithms.
+ *
+ * Includes the legacy labels so a configured checksum algorithm that was
+ * valid in 1.0.0 remains accepted; `fast-32` is the default.
  */
-const SUPPORTED_ALGORITHMS: ChecksumAlgorithm[] = ['fast-32'];
+const SUPPORTED_ALGORITHMS: ChecksumAlgorithm[] = [
+  'sha-256',
+  'sha-384',
+  'sha-512',
+  'md5',
+  'fast-32',
+];
 
 /**
  * JSON serializer configuration.

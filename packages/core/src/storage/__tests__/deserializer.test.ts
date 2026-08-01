@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { JsonDeserializer } from '../deserializer/json-deserializer';
 import { JsonSerializer } from '../serializer/json-serializer';
-import type { PersistedState } from '../types';
+import type { PersistedState, ChecksumAlgorithm } from '../types';
 
 describe('JsonDeserializer', () => {
   const createTestState = (version: number = 1): PersistedState => ({
@@ -141,6 +141,40 @@ describe('JsonDeserializer', () => {
       const fakeChecksum = { algorithm: 'fast-32' as const, value: 'invalid-hash' };
       const result = deserializer.deserializeWithChecksum(json, fakeChecksum);
       expect(result.version).toBe(1);
+    });
+
+    it('should accept every legacy checksum algorithm label (BC1 superset restore)', () => {
+      const serializer = new JsonSerializer({ checksum: { algorithm: 'md5' } });
+      const deserializer = new JsonDeserializer({ validateChecksum: true });
+
+      const state = createTestState();
+      const { serialized, checksum } = serializer.serializeWithChecksum(state);
+
+      for (const algorithm of ['md5', 'sha-256', 'sha-384', 'sha-512', 'fast-32'] as const) {
+        const labeled = { ...checksum!, algorithm };
+        const result = deserializer.deserializeWithChecksum(serialized, labeled);
+        expect(result.version).toBe(1);
+      }
+    });
+
+    it('should round-trip payloads written under a legacy algorithm label', () => {
+      const serializer = new JsonSerializer({ checksum: { algorithm: 'sha-256' } });
+      const deserializer = new JsonDeserializer({ validateChecksum: true });
+
+      const state = createTestState();
+      const { serialized, checksum } = serializer.serializeWithChecksum(state);
+
+      const result = deserializer.deserializeWithChecksum(serialized, checksum);
+      expect(result.version).toBe(1);
+      expect(checksum!.algorithm).toBe('sha-256');
+    });
+
+    it('should reject an unsupported algorithm label', () => {
+      const deserializer = new JsonDeserializer({ validateChecksum: true });
+      const json = JSON.stringify(createTestState());
+
+      const bogus = { algorithm: 'bogus-64' as ChecksumAlgorithm, value: 'abc' };
+      expect(() => deserializer.deserializeWithChecksum(json, bogus)).toThrow();
     });
   });
 });

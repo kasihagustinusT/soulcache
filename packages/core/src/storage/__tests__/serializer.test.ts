@@ -121,11 +121,12 @@ describe('JsonSerializer', () => {
 
   describe('isSupportedAlgorithm', () => {
     it('should return true for supported algorithms', () => {
-      expect(isSupportedAlgorithm('fast-32')).toBe(true);
+      for (const algorithm of ['fast-32', 'sha-256', 'sha-384', 'sha-512', 'md5']) {
+        expect(isSupportedAlgorithm(algorithm)).toBe(true);
+      }
     });
 
     it('should return false for unsupported algorithms', () => {
-      expect(isSupportedAlgorithm('sha-256')).toBe(false);
       expect(isSupportedAlgorithm('sha-1')).toBe(false);
       expect(isSupportedAlgorithm('crc32')).toBe(false);
       expect(isSupportedAlgorithm('')).toBe(false);

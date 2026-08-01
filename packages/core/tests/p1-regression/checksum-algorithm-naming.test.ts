@@ -44,11 +44,11 @@ describe('hash algorithm naming', () => {
     expect(restored.queryCache).toEqual(state.queryCache);
   });
 
-  it('3. fast-32 is the only supported algorithm', () => {
-    expect(isSupportedAlgorithm('fast-32')).toBe(true);
-    expect(isSupportedAlgorithm('sha-256')).toBe(false);
-    expect(isSupportedAlgorithm('sha-384')).toBe(false);
-    expect(isSupportedAlgorithm('sha-512')).toBe(false);
-    expect(isSupportedAlgorithm('md5')).toBe(false);
+  it('3. fast-32 and all legacy labels are supported (BC1 superset restore)', () => {
+    for (const algorithm of ['fast-32', 'sha-256', 'sha-384', 'sha-512', 'md5']) {
+      expect(isSupportedAlgorithm(algorithm)).toBe(true);
+    }
+    expect(isSupportedAlgorithm('sha-1')).toBe(false);
+    expect(isSupportedAlgorithm('bogus-64')).toBe(false);
   });
 });

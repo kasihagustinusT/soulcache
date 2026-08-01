@@ -123,8 +123,13 @@ export interface Deserializer {
 
 /**
  * Supported checksum algorithms.
+ *
+ * Superset union restored for backward compatibility: the legacy labels
+ * (`sha-256`, `sha-384`, `sha-512`, `md5`) are retained so payloads
+ * persisted before `fast-32` was introduced remain readable, and `fast-32`
+ * is the default for newly written payloads.
  */
-export type ChecksumAlgorithm = 'fast-32';
+export type ChecksumAlgorithm = 'sha-256' | 'sha-384' | 'sha-512' | 'md5' | 'fast-32';
 
 /**
  * Checksum configuration.
