@@ -114,7 +114,7 @@ describe('JsonDeserializer', () => {
 
   describe('Checksum Validation', () => {
     it('should validate checksum via deserializeWithChecksum', () => {
-      const serializer = new JsonSerializer({ checksum: { algorithm: 'sha-256' } });
+      const serializer = new JsonSerializer({ checksum: { algorithm: 'fast-32' } });
       const deserializer = new JsonDeserializer({ validateChecksum: true });
 
       const state = createTestState();
@@ -129,7 +129,7 @@ describe('JsonDeserializer', () => {
       const state = createTestState();
       const json = JSON.stringify(state);
 
-      const fakeChecksum = { algorithm: 'sha-256' as const, value: 'invalid-hash' };
+      const fakeChecksum = { algorithm: 'fast-32' as const, value: 'invalid-hash' };
       expect(() => deserializer.deserializeWithChecksum(json, fakeChecksum)).toThrow();
     });
 
@@ -138,7 +138,7 @@ describe('JsonDeserializer', () => {
       const state = createTestState();
       const json = JSON.stringify(state);
 
-      const fakeChecksum = { algorithm: 'sha-256' as const, value: 'invalid-hash' };
+      const fakeChecksum = { algorithm: 'fast-32' as const, value: 'invalid-hash' };
       const result = deserializer.deserializeWithChecksum(json, fakeChecksum);
       expect(result.version).toBe(1);
     });

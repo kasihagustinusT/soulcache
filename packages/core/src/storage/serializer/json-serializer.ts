@@ -12,7 +12,7 @@ import { SerializationError } from '../errors';
 /**
  * Supported checksum algorithms.
  */
-const SUPPORTED_ALGORITHMS: ChecksumAlgorithm[] = ['sha-256', 'sha-384', 'sha-512', 'md5'];
+const SUPPORTED_ALGORITHMS: ChecksumAlgorithm[] = ['fast-32'];
 
 /**
  * JSON serializer configuration.
@@ -104,7 +104,7 @@ export class JsonSerializer implements Serializer {
   private calculateChecksum(data: string, algorithm: ChecksumAlgorithm): ChecksumInfo {
     // Simple hash implementation for browser/Node.js compatibility
     // In production, this could use Web Crypto API or a hash library
-    const value = this.simpleHash(data);
+    const value = this.fast32Hash(data);
 
     return {
       algorithm,
@@ -113,15 +113,16 @@ export class JsonSerializer implements Serializer {
   }
 
   /**
-   * Simple hash function for checksums.
+   * Fast 32-bit hash function for checksums.
    *
-   * Note: This is a simple implementation for demonstration.
-   * Production use should employ a proper hash algorithm.
+   * Uses a Java hashCode derivative (djb2 variant) for fast, deterministic
+   * integrity checking. This is NOT a cryptographic hash — it is used
+   * solely for detecting accidental data corruption during persistence.
    *
    * @param data - Data to hash
-   * @returns Hex-encoded hash
+   * @returns 8-character hex-encoded hash
    */
-  private simpleHash(data: string): string {
+  private fast32Hash(data: string): string {
     let hash = 0;
 
     for (let i = 0; i < data.length; i++) {
@@ -150,6 +151,14 @@ export class JsonSerializer implements Serializer {
 
     if (Array.isArray(obj)) {
       return obj.map(item => this.sortObjectKeys(item)) as T;
+    }
+
+    // Only sort plain objects. Non-plain objects (Date, Map, Set, RegExp,
+    // custom classes) are passed through unchanged to prevent silent
+    // data corruption — Object.keys() returns [] for these types,
+    // which would convert them to empty objects {}.
+    if (obj.constructor !== Object) {
+      return obj;
     }
 
     const sorted: Record<string, unknown> = {};

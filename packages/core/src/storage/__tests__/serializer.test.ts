@@ -98,7 +98,7 @@ describe('JsonSerializer', () => {
   describe('Checksum', () => {
     it('should serialize with checksum when configured', () => {
       const serializer = new JsonSerializer({
-        checksum: { algorithm: 'sha-256' },
+        checksum: { algorithm: 'fast-32' },
       });
 
       const state = createTestState();
@@ -106,7 +106,7 @@ describe('JsonSerializer', () => {
 
       expect(typeof serialized).toBe('string');
       expect(checksum).toBeDefined();
-      expect(checksum?.algorithm).toBe('sha-256');
+      expect(checksum?.algorithm).toBe('fast-32');
       expect(typeof checksum?.value).toBe('string');
     });
 
@@ -121,13 +121,11 @@ describe('JsonSerializer', () => {
 
   describe('isSupportedAlgorithm', () => {
     it('should return true for supported algorithms', () => {
-      expect(isSupportedAlgorithm('sha-256')).toBe(true);
-      expect(isSupportedAlgorithm('sha-384')).toBe(true);
-      expect(isSupportedAlgorithm('sha-512')).toBe(true);
-      expect(isSupportedAlgorithm('md5')).toBe(true);
+      expect(isSupportedAlgorithm('fast-32')).toBe(true);
     });
 
     it('should return false for unsupported algorithms', () => {
+      expect(isSupportedAlgorithm('sha-256')).toBe(false);
       expect(isSupportedAlgorithm('sha-1')).toBe(false);
       expect(isSupportedAlgorithm('crc32')).toBe(false);
       expect(isSupportedAlgorithm('')).toBe(false);

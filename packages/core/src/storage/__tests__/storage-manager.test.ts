@@ -120,7 +120,68 @@ describe('StorageManager', () => {
     });
   });
 
-  describe('Clear', () => {
+  describe('Dispose during in-flight operations', () => {
+  it('should handle dispose during in-flight save without throwing', async () => {
+    const slowAdapter = new MemoryAdapter();
+    await slowAdapter.initialize();
+    // Make adapter.set slow so save is in-flight when dispose is called
+    let resolveSet: (() => void) | undefined;
+    const setPromise = new Promise<void>((r) => { resolveSet = r; });
+    vi.spyOn(slowAdapter, 'set').mockImplementation(async (_key, _value) => {
+      await setPromise;
+    });
+
+    const mgr = new StorageManager({ adapter: slowAdapter, prefix: 'test', version: 1 });
+    await mgr.initialize();
+
+    const savePromise = mgr.save({ version: 1, timestamp: Date.now(), queryCache: { entries: {}, metadata: { entryCount: 0, totalSize: 0 } }, mutationCache: { entries: {}, metadata: { entryCount: 0, totalSize: 0 } }, metadata: { lastUpdated: Date.now(), schemaVersion: 1 } });
+
+    // Dispose while save is in-flight — the adapter set() is awaiting the promise,
+    // so dispose runs and transitions status through disposing→disposed.
+    // Since the mock never touches the real adapter, the adapter.dispose() call
+    // inside StorageManger.dispose() is a no-op (MemoryAdapter.dispose is real).
+    const disposePromise = mgr.dispose();
+
+    // Let save complete
+    resolveSet!();
+    await savePromise;
+    await disposePromise;
+
+    expect(mgr.getStatus()).toBe('disposed');
+  });
+
+  it('should handle dispose during in-flight restore without throwing', async () => {
+    const slowAdapter = new MemoryAdapter();
+    await slowAdapter.initialize();
+    // Pre-save some data
+    await slowAdapter.set('test:state', JSON.stringify({ version: 1, timestamp: Date.now(), queryCache: { entries: { 'q1': { data: {}, timestamp: 0, status: 'fresh', fetchCount: 0, GCCount: 0 } }, metadata: { entryCount: 1, totalSize: 10 } }, mutationCache: { entries: {}, metadata: { entryCount: 0, totalSize: 0 } }, metadata: { lastUpdated: Date.now(), schemaVersion: 1 } }));
+
+    // Make adapter.get slow so restore is in-flight when dispose is called
+    let resolveGet: (() => void) | undefined;
+    const getPromise = new Promise<void>((r) => { resolveGet = r; });
+    vi.spyOn(slowAdapter, 'get').mockImplementation(async (_key) => {
+      await getPromise;
+      return null;
+    });
+
+    const mgr = new StorageManager({ adapter: slowAdapter, prefix: 'test', version: 1 });
+    await mgr.initialize();
+
+    const restorePromise = mgr.restore();
+
+    // Dispose while restore is in-flight
+    const disposePromise = mgr.dispose();
+
+    // Let restore complete
+    resolveGet!();
+    await restorePromise;
+    await disposePromise;
+
+    expect(mgr.getStatus()).toBe('disposed');
+  });
+});
+
+describe('Clear', () => {
     it('should clear all data', async () => {
       const state = createTestState();
       await manager.save(state);

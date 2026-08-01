@@ -163,6 +163,32 @@ describe('LifecycleManager', () => {
     });
   });
 
+  describe('Dispose during in-flight ops', () => {
+    it('should transition from persisting to disposing', () => {
+      manager.setStatus('initializing');
+      manager.setStatus('ready');
+      manager.setStatus('persisting');
+      manager.setStatus('disposing');
+      expect(manager.getStatus()).toBe('disposing');
+    });
+
+    it('should transition from restoring to disposing', () => {
+      manager.setStatus('initializing');
+      manager.setStatus('ready');
+      manager.setStatus('restoring');
+      manager.setStatus('disposing');
+      expect(manager.getStatus()).toBe('disposing');
+    });
+
+    it('should transition from migrating to disposing', () => {
+      manager.setStatus('initializing');
+      manager.setStatus('ready');
+      manager.setStatus('migrating');
+      manager.setStatus('disposing');
+      expect(manager.getStatus()).toBe('disposing');
+    });
+  });
+
   describe('Reset', () => {
     it('should reset to idle and clear handlers', () => {
       const handler = vi.fn();

@@ -18,7 +18,7 @@ import {
 /**
  * Supported checksum algorithms.
  */
-const SUPPORTED_ALGORITHMS: ChecksumAlgorithm[] = ['sha-256', 'sha-384', 'sha-512', 'md5'];
+const SUPPORTED_ALGORITHMS: ChecksumAlgorithm[] = ['fast-32'];
 
 /**
  * Current schema version.
@@ -220,7 +220,7 @@ export class JsonDeserializer implements Deserializer {
    * @returns Checksum information
    */
   private calculateChecksum(data: string, algorithm: ChecksumAlgorithm): ChecksumInfo {
-    const value = this.simpleHash(data);
+    const value = this.fast32Hash(data);
 
     return {
       algorithm,
@@ -229,12 +229,16 @@ export class JsonDeserializer implements Deserializer {
   }
 
   /**
-   * Simple hash function for checksums.
+   * Fast 32-bit hash function for checksums.
+   *
+   * Uses a Java hashCode derivative (djb2 variant) for fast, deterministic
+   * integrity checking. This is NOT a cryptographic hash — it is used
+   * solely for detecting accidental data corruption during persistence.
    *
    * @param data - Data to hash
-   * @returns Hex-encoded hash
+   * @returns 8-character hex-encoded hash
    */
-  private simpleHash(data: string): string {
+  private fast32Hash(data: string): string {
     let hash = 0;
 
     for (let i = 0; i < data.length; i++) {

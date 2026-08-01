@@ -107,7 +107,7 @@ describe('Storage Integration', () => {
 
   describe('Serializer Integration', () => {
     it('should work with JsonSerializer and JsonDeserializer', () => {
-      const serializer = new JsonSerializer({ checksum: { algorithm: 'sha-256' } });
+      const serializer = new JsonSerializer({ checksum: { algorithm: 'fast-32' } });
       const deserializer = new JsonDeserializer();
 
       const state = createTestState();

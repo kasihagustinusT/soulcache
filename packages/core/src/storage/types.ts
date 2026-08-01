@@ -124,7 +124,7 @@ export interface Deserializer {
 /**
  * Supported checksum algorithms.
  */
-export type ChecksumAlgorithm = 'sha-256' | 'sha-384' | 'sha-512' | 'md5';
+export type ChecksumAlgorithm = 'fast-32';
 
 /**
  * Checksum configuration.

@@ -73,9 +73,11 @@ export class StorageManager {
     this.diagnostics = new Diagnostics();
 
     // Use custom serializer/deserializer if provided, otherwise use defaults
-    this.serializer = (config.serializer as JsonSerializer) ?? new JsonSerializer({
-      checksum: config.checksum,
-    });
+    this.serializer =
+      (config.serializer as JsonSerializer) ??
+      new JsonSerializer({
+        checksum: config.checksum,
+      });
 
     this.deserializer = (config.deserializer as JsonDeserializer) ?? new JsonDeserializer();
   }
@@ -111,18 +113,22 @@ export class StorageManager {
       return;
     }
 
-    this.lifecycleManager.setStatus('disposing');
-
     try {
+      this.lifecycleManager.setStatus('disposing');
+
       // Cancel any pending debounce
       if (this.debounceTimer !== null) {
         clearTimeout(this.debounceTimer);
         this.debounceTimer = null;
       }
 
+      // Clear event handlers to prevent memory leaks and stale references
+      this.eventHandlers.clear();
+
       // Dispose adapter if provided
       if (this.adapter) {
         await this.adapter.dispose();
+        this.adapter = null;
       }
 
       this.lifecycleManager.setStatus('disposed');
@@ -151,7 +157,7 @@ export class StorageManager {
         this.adapter!,
         state,
         (data) => this.serializer.serialize(data),
-        force
+        force,
       );
 
       // Update diagnostics
@@ -159,7 +165,11 @@ export class StorageManager {
       this.diagnostics.recordSave(serialized.length);
 
       const duration = Date.now() - startTime;
-      this.lifecycleManager.setStatus('ready');
+      // Only transition back to ready if still persisting — dispose may have
+      // been called during the async operation
+      if (this.lifecycleManager.getStatus() === 'persisting') {
+        this.lifecycleManager.setStatus('ready');
+      }
       this.emitEvent('storage.save.complete', {
         timestamp: Date.now(),
         duration,
@@ -167,15 +177,18 @@ export class StorageManager {
       });
     } catch (error) {
       this.diagnostics.recordFailure();
-      this.lifecycleManager.setStatus('ready');
+      if (this.lifecycleManager.getStatus() === 'persisting') {
+        this.lifecycleManager.setStatus('ready');
+      }
 
-      const storageError = error instanceof SoulCacheStorageError
-        ? error.toStorageError()
-        : {
-            type: 'provider_error' as const,
-            message: error instanceof Error ? error.message : String(error),
-            cause: error instanceof Error ? error : (undefined as Error | undefined),
-          };
+      const storageError =
+        error instanceof SoulCacheStorageError
+          ? error.toStorageError()
+          : {
+              type: 'provider_error' as const,
+              message: error instanceof Error ? error.message : String(error),
+              cause: error instanceof Error ? error : (undefined as Error | undefined),
+            };
 
       this.emitEvent('storage.save.error', {
         timestamp: Date.now(),
@@ -203,16 +216,18 @@ export class StorageManager {
     this.emitEvent('storage.restore.start', { timestamp: startTime });
 
     try {
-      const state = await this.coordinator.restore(
-        this.adapter!,
-        (data) => this.deserializer.deserialize(data)
+      const state = await this.coordinator.restore(this.adapter!, (data) =>
+        this.deserializer.deserialize(data),
       );
 
       // Update diagnostics
       this.diagnostics.recordRestore();
 
       const duration = Date.now() - startTime;
-      this.lifecycleManager.setStatus('ready');
+      // Only transition back to ready if still restoring
+      if (this.lifecycleManager.getStatus() === 'restoring') {
+        this.lifecycleManager.setStatus('ready');
+      }
       this.emitEvent('storage.restore.complete', {
         timestamp: Date.now(),
         duration,
@@ -222,15 +237,18 @@ export class StorageManager {
       return state;
     } catch (error) {
       this.diagnostics.recordFailure();
-      this.lifecycleManager.setStatus('ready');
+      if (this.lifecycleManager.getStatus() === 'restoring') {
+        this.lifecycleManager.setStatus('ready');
+      }
 
-      const storageError = error instanceof SoulCacheStorageError
-        ? error.toStorageError()
-        : {
-            type: 'provider_error' as const,
-            message: error instanceof Error ? error.message : String(error),
-            cause: error instanceof Error ? error : (undefined as Error | undefined),
-          };
+      const storageError =
+        error instanceof SoulCacheStorageError
+          ? error.toStorageError()
+          : {
+              type: 'provider_error' as const,
+              message: error instanceof Error ? error.message : String(error),
+              cause: error instanceof Error ? error : (undefined as Error | undefined),
+            };
 
       this.emitEvent('storage.restore.error', {
         timestamp: Date.now(),
@@ -252,24 +270,36 @@ export class StorageManager {
 
     const startTime = Date.now();
 
+    this.lifecycleManager.setStatus('persisting');
     this.emitEvent('storage.clear.start', { timestamp: startTime });
 
     try {
       await this.coordinator.clear(this.adapter!);
 
       const duration = Date.now() - startTime;
+      // Only emit completion and transition back to ready if still persisting
+      // — dispose may have been called during the async operation, making
+      // this.adapter stale.
+      if (this.lifecycleManager.getStatus() === 'persisting') {
+        this.lifecycleManager.setStatus('ready');
+      }
       this.emitEvent('storage.clear.complete', {
         timestamp: Date.now(),
         duration,
       });
     } catch (error) {
-      const storageError = error instanceof SoulCacheStorageError
-        ? error.toStorageError()
-        : {
-            type: 'provider_error' as const,
-            message: error instanceof Error ? error.message : String(error),
-            cause: error instanceof Error ? error : (undefined as Error | undefined),
-          };
+      if (this.lifecycleManager.getStatus() === 'persisting') {
+        this.lifecycleManager.setStatus('ready');
+      }
+
+      const storageError =
+        error instanceof SoulCacheStorageError
+          ? error.toStorageError()
+          : {
+              type: 'provider_error' as const,
+              message: error instanceof Error ? error.message : String(error),
+              cause: error instanceof Error ? error : (undefined as Error | undefined),
+            };
 
       this.emitEvent('storage.clear.error', {
         timestamp: Date.now(),
@@ -335,7 +365,7 @@ export class StorageManager {
   private ensureReady(): void {
     if (!this.lifecycleManager.isReady()) {
       throw new NotInitializedError(
-        `StorageManager is not ready. Current status: ${this.lifecycleManager.getStatus()}`
+        `StorageManager is not ready. Current status: ${this.lifecycleManager.getStatus()}`,
       );
     }
   }
