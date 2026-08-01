@@ -68,7 +68,13 @@ pnpm test
 pnpm test:watch
 
 # Run benchmarks
-pnpm benchmark
+pnpm bench
+
+# Verify bug-fix regression suite
+pnpm test:bugs
+
+# Verify public API compatibility with the v1.0.0 baseline
+pnpm check:api
 
 # Build packages
 pnpm build
