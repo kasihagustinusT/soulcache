@@ -1,0 +1,70 @@
+---
+title: Events
+description: SoulCache event system — the EventBus envelope, ordering, and subscription contract
+---
+
+## Events
+
+SoulCache routes cross-subsystem communication through a single internal
+`EventBus`. Every runtime state change is observable as an event, which makes
+the runtime diagnosable without re-instrumentation (devtools, persistence,
+and telemetry attach as passive subscribers).
+
+> **Status:** draft — this page documents the current M1.1 event contract and
+> will be extended as the EventBus evolves (the public `subscribeToRuntime` export
+> ships with the M1 milestone's final task M1.5; opt-in coalescing lands with M1.3;
+> SSR hydration events land with M2).
+
+### The event envelope
+
+Every emitted event carries a stable, immutable envelope:
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Unique event identifier, assigned by the bus |
+| `seq` | `number` | Monotonic sequence number, assigned by the bus at emission |
+| `type` | `RuntimeEventType` | Event type (query, cache, fetch, mutation, scheduler, storage) |
+| `timestamp` | `number` | Creation time (`Date.now()`) |
+| `source` | `EventSource` | Originating subsystem |
+| `payload` | `object` | Event-specific data |
+| `metadata` | `object?` | Optional additional metadata |
+
+The `id`, `seq`, and `timestamp` fields are assigned by the bus at emission
+time; emitters omit them.
+
+### Ordering
+
+- Events are delivered **synchronously in FIFO order** per subscription.
+- The **sequence number strictly increases** across the lifetime of a bus,
+  providing deterministic global ordering across all event types and
+  subscribers. It survives `clear()` so ordering tokens never restart.
+
+### Delivery guarantees
+
+- Delivery is **synchronous and FIFO** (a public contract).
+- A throwing subscriber is **isolated**: its error is captured and does not
+  prevent delivery to other subscribers or crash the runtime.
+
+### Subscribing
+
+```ts
+import { EventBus } from '@soulcache/core';
+
+const bus = new EventBus();
+
+const unsubscribe = bus.subscribe('query.created', (event) => {
+  console.log('Query created at seq', event.seq);
+});
+
+bus.emit({
+  type: 'query.created',
+  source: 'query-runtime',
+  payload: { queryId: '123', queryKey: ['users'] },
+});
+
+unsubscribe();
+```
+
+The public `subscribeToRuntime` entry point supersedes direct `EventBus` use
+for application consumers (ships with M1.5); the raw `EventBus` class
+remains an internal runtime primitive.

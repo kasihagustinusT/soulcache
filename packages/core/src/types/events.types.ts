@@ -120,6 +120,15 @@ export interface RuntimeEvent<T extends EventPayload = EventPayload> {
   /** Unique event identifier */
   readonly id: string;
 
+  /**
+   * Monotonic sequence number.
+   *
+   * Assigned by the EventBus at emission time. Strictly increases across the
+   * lifetime of a bus, providing deterministic global ordering (SPEC §8.1;
+   * PROTO §23). Preserves the existing `id`/`timestamp` fields (EDR §8.1.1).
+   */
+  readonly seq: number;
+
   /** Event type */
   readonly type: RuntimeEventType;
 

@@ -35,6 +35,7 @@ export class EventBus {
   private readonly listeners = new Map<RuntimeEventType, Set<EventHandler>>();
   private readonly eventLog: RuntimeEvent[] = [];
   private readonly maxLogSize: number;
+  private nextSeq = 0;
 
   constructor(options?: { maxLogSize?: number }) {
     this.maxLogSize = options?.maxLogSize ?? 1000;
@@ -67,13 +68,16 @@ export class EventBus {
    * Emit a runtime event.
    *
    * Events are delivered synchronously in FIFO order.
+   * The `id`, `seq`, and `timestamp` fields are assigned by the bus;
+   * callers omit them.
    *
    * @param event - The event to emit
    */
-  emit(event: Omit<RuntimeEvent, 'id' | 'timestamp'>): void {
+  emit(event: Omit<RuntimeEvent, 'id' | 'timestamp' | 'seq'>): void {
     const fullEvent: RuntimeEvent = {
       ...event,
       id: generateId(),
+      seq: this.nextSeq++,
       timestamp: Date.now(),
     };
 
