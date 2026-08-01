@@ -80,7 +80,7 @@ export class QueryEntry<T = unknown> implements QueryRecord<T> {
     this.staleAt = null;
     this.expiresAt = null;
     this.version = 0;
-    this.dependencies = options.dependencies ?? [];
+    this.dependencies = [...(options.dependencies ?? [])];
     this.meta = options.meta ?? {};
     this.observerCount = options.observerCount ?? 0;
     this.retryCount = 0;
@@ -122,6 +122,9 @@ export class QueryEntry<T = unknown> implements QueryRecord<T> {
     this.data = data;
     this.state = state;
     this.status = 'fresh';
+    if (state === 'success') {
+      this.error = null;
+    }
     this.updatedAt = new Date(now ?? Date.now()).toISOString();
     this.version++;
     this.touch();
@@ -138,19 +141,10 @@ export class QueryEntry<T = unknown> implements QueryRecord<T> {
   }
 
   /**
-   * Mark the entry as stale (RFC-000).
-   */
-  markStale(): void {
-    this.state = 'stale';
-    this.status = 'stale';
-    this.staleAt = new Date().toISOString();
-  }
-
-  /**
    * Mark the entry as invalidated (RFC-000).
    */
   markInvalidated(): void {
-    this.state = 'stale';
+    this.state = 'invalidated';
     this.status = 'invalidated';
     this.staleAt = new Date().toISOString();
   }
@@ -164,19 +158,6 @@ export class QueryEntry<T = unknown> implements QueryRecord<T> {
     }
     if (this._accessCount === 0 && this.observerCount === 0) {
       return Date.now() - this.createdAt > gcTime;
-    }
-    return false;
-  }
-
-  /**
-   * Check if entry is stale based on staleTime.
-   */
-  isStale(staleTime: number): boolean {
-    if (this.staleAt !== null) {
-      return Date.now() > new Date(this.staleAt).getTime() + staleTime;
-    }
-    if (this.lastFetchedAt !== undefined) {
-      return Date.now() - this.lastFetchedAt > staleTime;
     }
     return false;
   }

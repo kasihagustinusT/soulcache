@@ -1,4 +1,31 @@
-import type { QueryKey } from '../types/query.types';
+import type { QueryKey, QueryStatus } from '../types/query.types';
+import type { QueryRecordState } from '../types/internal.types';
+
+/**
+ * Map internal QueryRecordState to public QueryStatus.
+ * Single canonical implementation shared by QueryClient and QueryObserver.
+ */
+export function mapStateToStatus(state: QueryRecordState): QueryStatus {
+  switch (state) {
+    case 'idle':
+      return 'idle';
+    case 'pending':
+    case 'fetching':
+      return 'loading';
+    case 'success':
+      return 'success';
+    case 'error':
+      return 'error';
+    case 'stale':
+      return 'success';
+    case 'invalidated':
+      return 'loading';
+    case 'destroyed':
+      return 'idle';
+    default:
+      return 'idle';
+  }
+}
 
 /**
  * Hash Query Key
@@ -100,6 +127,37 @@ export function generateId(): string {
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).slice(2, 8);
   return `${timestamp}-${random}`;
+}
+
+/**
+ * Is Query Key Prefix
+ *
+ * Checks whether `prefix` is a structural array prefix of `key`.
+ * Uses deep equality for element comparison.
+ *
+ * @example
+ * ```ts
+ * isKeyPrefixOf(['users'], ['users', 1])    // true
+ * isKeyPrefixOf(['user'], ['users'])         // false
+ * isKeyPrefixOf([], ['users', 1])            // true (empty prefix matches all)
+ * ```
+ *
+ * @param prefix - The candidate prefix
+ * @param key - The full query key to test against
+ * @returns Whether prefix is a structural prefix of key
+ */
+export function isKeyPrefixOf(prefix: QueryKey, key: QueryKey): boolean {
+  if (prefix.length > key.length) {
+    return false;
+  }
+
+  for (let i = 0; i < prefix.length; i++) {
+    if (!deepEqual(prefix[i], key[i])) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 /**

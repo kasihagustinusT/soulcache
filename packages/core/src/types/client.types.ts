@@ -11,6 +11,9 @@ export interface QueryClientConfig {
 
   /** Custom logger */
   readonly logger?: Logger;
+
+  /** Called when a query is removed via removeQuery */
+  readonly onRemoveQuery?: (keyHash: string, queryKey: QueryKey) => void;
 }
 
 /**
@@ -27,6 +30,9 @@ export interface DefaultQueryOptions {
 
   /** Default retry count */
   readonly retry?: number;
+
+  /** Auto-GC interval in ms (0 = disabled) */
+  readonly gcInterval?: number;
 }
 
 /**

@@ -15,6 +15,10 @@ export interface CacheEngineOptions {
   gcTime?: number;
   /** Maximum cache size */
   maxSize?: number;
+  /** Auto-GC interval in ms (0 = disabled, default 0) */
+  gcInterval?: number;
+  /** Called when an entry is removed by GC or LRU eviction (not by explicit delete/clear/destroy) */
+  onEvict?: (keyHash: string) => void;
 }
 
 /**
@@ -40,7 +44,7 @@ export class CacheWriteConflict extends Error {
   constructor(keyHash: string, incomingVersion: number, currentVersion: number) {
     super(
       `Cache write conflict for key "${keyHash}": ` +
-      `incoming version ${incomingVersion} < current version ${currentVersion}`,
+        `incoming version ${incomingVersion} < current version ${currentVersion}`,
     );
     this.name = 'CacheWriteConflict';
   }
@@ -74,11 +78,24 @@ export class CacheEngine {
   private readonly _staleTime: number;
   private readonly gcTime: number;
   private readonly maxSize: number;
+  private readonly _gcInterval: number;
+  private readonly _onEvict: (keyHash: string) => void;
+  private _gcTimer: ReturnType<typeof setInterval> | undefined;
 
   constructor(options?: CacheEngineOptions) {
     this._staleTime = options?.staleTime ?? DEFAULT_STALE_TIME;
     this.gcTime = options?.gcTime ?? DEFAULT_GC_TIME;
     this.maxSize = options?.maxSize ?? MAX_CACHE_SIZE;
+    this._gcInterval = options?.gcInterval ?? 0;
+    this._onEvict = options?.onEvict ?? (() => {});
+    if (this._gcInterval > 0 && typeof setInterval !== 'undefined') {
+      this._gcTimer = setInterval(() => {
+        this.collectGarbage();
+      }, this._gcInterval);
+      if (typeof this._gcTimer === 'object' && 'unref' in this._gcTimer) {
+        this._gcTimer.unref();
+      }
+    }
   }
 
   /**
@@ -137,12 +154,20 @@ export class CacheEngine {
       if (options.data !== undefined) {
         const now = Date.now();
         existing.updateData(options.data, options.state, now);
+        existing.fetchStatus = 'idle';
         existing.lastFetchedAt = now;
         existing.staleAt = new Date(now + this._staleTime).toISOString();
         existing.expiresAt = new Date(now + this.gcTime).toISOString();
       }
-      if (options.error !== undefined && options.error !== null) {
-        existing.updateError(options.error, options.state);
+      if ('error' in options) {
+        if (options.error != null) {
+          existing.updateError(options.error, options.state);
+          existing.fetchStatus = 'idle';
+        } else {
+          existing.error = null;
+          existing.updatedAt = new Date().toISOString();
+          existing.touch();
+        }
       }
       if (options.meta !== undefined) {
         existing.meta = { ...existing.meta, ...options.meta };
@@ -151,7 +176,8 @@ export class CacheEngine {
       return existing;
     }
 
-    // Check size limit before insert
+    // Check size limit before insert. Eviction is best-effort: if all entries
+    // are active, temporary overflow is permitted (see evict() invariant).
     if (this.store.size >= this.maxSize) {
       this.evict();
     }
@@ -167,13 +193,19 @@ export class CacheEngine {
     if (options.status !== undefined) entry.status = options.status;
     if (options.error !== undefined) entry.error = options.error;
     if (options.meta !== undefined) entry.meta = options.meta;
-    if (options.dependencies !== undefined) entry.dependencies = options.dependencies;
+    if (options.dependencies !== undefined) entry.dependencies = [...options.dependencies];
 
     entry.lastFetchedAt = Date.now();
     entry.staleAt = new Date(Date.now() + this._staleTime).toISOString();
     entry.expiresAt = new Date(Date.now() + this.gcTime).toISOString();
 
     this.store.set(keyHash, entry);
+
+    // Opportunistic GC: clean up expired entries when cache is near capacity
+    if (this.store.size >= this.maxSize * 0.75) {
+      this.collectGarbage();
+    }
+
     return entry;
   }
 
@@ -293,6 +325,10 @@ export class CacheEngine {
       if (!entry.gcEligible) {
         continue;
       }
+      // Never GC an entry that has an active in-flight fetch
+      if (entry.fetchStatus === 'fetching') {
+        continue;
+      }
       if (entry.isExpired(this.gcTime)) {
         toRemove.push(hash);
       }
@@ -300,6 +336,13 @@ export class CacheEngine {
 
     for (const hash of toRemove) {
       this.store.delete(hash);
+      // Isolate eviction failures: one entry's _onEvict exception must not
+      // prevent subsequent eligible entries from being evicted.
+      try {
+        this._onEvict(hash);
+      } catch {
+        /* isolate */
+      }
     }
 
     return toRemove.length;
@@ -307,14 +350,27 @@ export class CacheEngine {
 
   /**
    * Evict least recently used entry.
+   *
+   * Active entries (observerCount > 0) are protected from eviction.
+   * Inactive entries are eligible for LRU eviction when cache exceeds maxSize.
+   * If all entries are active, eviction is a no-op and temporary overflow is
+   * permitted. Capacity is restored when entries become inactive and subsequent
+   * evictions occur.
    */
   private evict(): void {
     let lruHash: string | undefined;
     let lruScore = Infinity;
 
     for (const [hash, entry] of this.store.entries()) {
-      // Don't evict active entries
+      // Active entries are protected from eviction.
+      // If all entries are active, no candidate is found and temporary overflow
+      // is permitted. Capacity restores when entries become inactive.
       if (entry.observerCount > 0) {
+        continue;
+      }
+      // Never evict an entry that has an active in-flight fetch, consistent
+      // with the collectGarbage() guard.
+      if (entry.fetchStatus === 'fetching') {
         continue;
       }
 
@@ -327,6 +383,11 @@ export class CacheEngine {
 
     if (lruHash) {
       this.store.delete(lruHash);
+      try {
+        this._onEvict(lruHash);
+      } catch {
+        /* isolate */
+      }
     }
   }
 
@@ -354,5 +415,17 @@ export class CacheEngine {
    */
   get size(): number {
     return this.store.size;
+  }
+
+  /**
+   * Destroy the cache engine.
+   * Stops any GC timer and clears all entries.
+   */
+  destroy(): void {
+    if (this._gcTimer !== undefined) {
+      clearInterval(this._gcTimer);
+      this._gcTimer = undefined;
+    }
+    this.store.clear();
   }
 }

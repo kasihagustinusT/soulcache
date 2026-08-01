@@ -40,6 +40,9 @@ export interface InfiniteQueryState<TData = unknown> {
   /** Whether a backward fetch is currently in progress */
   readonly isFetchingPreviousPage: boolean;
 
+  /** Whether any fetch (initial, next, or previous) is in progress */
+  readonly isFetching: boolean;
+
   /** The error if fetch failed */
   readonly error: Error | null;
 }
