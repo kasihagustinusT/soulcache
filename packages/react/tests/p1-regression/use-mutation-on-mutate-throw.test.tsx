@@ -51,7 +51,7 @@ describe('onMutate throw must not stick mutation in pending', () => {
           mutationFn: async () => 'ok',
           onMutate: () => {
             throw 'string error';
-          }, // eslint-disable-line no-throw-literal
+          },
         }),
       { wrapper },
     );

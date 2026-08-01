@@ -103,7 +103,7 @@ describe('GC must clean up _snapshotCache and _stateMachines', () => {
     // We need to test via QueryClient, so use a different approach:
     // Manually trigger LRU eviction through cache size limit
     // QueryClient doesn't expose maxSize directly, so test CacheEngine + onEvict
-    let evictedKeys: string[] = [];
+    const evictedKeys: string[] = [];
     const testCache = new CacheEngine({
       maxSize: 2,
       onEvict: (keyHash) => evictedKeys.push(keyHash),

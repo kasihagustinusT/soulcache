@@ -67,7 +67,7 @@ describe('InfiniteQuery', () => {
 
   describe('fetchNextPage', () => {
     it('should fetch the next page', async () => {
-      let page = 0;
+      const page = 0;
       const query = new InfiniteQuery({
         queryKey: ['posts'],
         queryFn: async ({ pageParam }) => {

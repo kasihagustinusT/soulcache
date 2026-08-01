@@ -21,6 +21,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:bugs": "node --test test-bug-verification-suite.mjs",
+    "test:integration": "vitest run packages/core/src/storage/__tests__/integration.test.ts packages/core/tests/scheduler/scheduler.test.ts",
+    "test:stress": "vitest run packages/core/tests/cache/stress.test.ts",
+    "test:memory": "vitest run packages/core/tests/p2-regression/ packages/core/tests/p3-regression/storage-clear-post-async-guard.test.ts",
+    "bench": "pnpm exec tsup scripts/bench.ts --format esm --platform node --out-dir .tmp-bench --silent && node --expose-gc .tmp-bench/bench.mjs",
+    "bench:baseline": "pnpm exec tsup scripts/bench.ts --format esm --platform node --out-dir .tmp-bench --silent && node --expose-gc .tmp-bench/bench.mjs --baseline",
+    "check:api": "node scripts/check-public-api.mjs",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -35,15 +42,18 @@
     "validate:docs": "node docs/scripts/validate.mjs"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.27.0",
     "@changesets/changelog-github": "^0.5.0",
+    "@changesets/cli": "^2.27.0",
     "@eslint/js": "^9.18.0",
     "@types/node": "^22.10.7",
     "@vitest/coverage-v8": "^3.0.4",
     "eslint": "^9.18.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "prettier": "^3.4.2",
     "tsup": "^8.3.6",
     "typescript": "^5.8.0",
+    "typescript-eslint": "^8.65.0",
+    "vite-node": "^6.0.0",
     "vitest": "^3.0.4"
   },
   "pnpm": {

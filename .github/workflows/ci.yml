@@ -45,8 +45,30 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: Test (bug verification suite)
+        run: pnpm test:bugs
+
+      - name: Test (React bindings)
+        run: pnpm --filter @soulcache/react test
+
+      - name: Test (integration gate)
+        run: pnpm test:integration
+
+      - name: Test (stress gate)
+        run: pnpm test:stress
+
+      - name: Test (memory gate)
+        run: pnpm test:memory
+
+      - name: Validate monorepo
+        run: pnpm validate:monorepo
+
       - name: Validate packages
         run: node scripts/validate-exports.mjs
+        if: matrix.node-version == 22
+
+      - name: Check public API (CA-7)
+        run: pnpm check:api
         if: matrix.node-version == 22
 
       - name: Validate docs
@@ -72,13 +94,18 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Test with coverage
+      - name: Test with coverage (core + devtools-core)
         run: pnpm test:coverage
+
+      - name: Test with coverage (React bindings)
+        run: pnpm --filter @soulcache/react test:coverage
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: coverage
-          path: coverage/
+          path: |
+            coverage/
+            packages/react/coverage/
           retention-days: 7

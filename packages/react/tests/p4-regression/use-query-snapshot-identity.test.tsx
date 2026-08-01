@@ -79,7 +79,7 @@ describe('snapshot identity stability', () => {
       resolveFetch = r;
     });
 
-    let seenSnapshots: Array<ReturnType<typeof client.getQuerySnapshot<string>>> = [];
+    const seenSnapshots: Array<ReturnType<typeof client.getQuerySnapshot<string>>> = [];
 
     renderHook(
       () => {
@@ -111,7 +111,7 @@ describe('snapshot identity stability', () => {
     const key = ['invalidate-snap'];
     client.setQueryData(key, 'data');
 
-    let seenSnapshots: Array<ReturnType<typeof client.getQuerySnapshot<string>>> = [];
+    const seenSnapshots: Array<ReturnType<typeof client.getQuerySnapshot<string>>> = [];
 
     renderHook(
       () => {

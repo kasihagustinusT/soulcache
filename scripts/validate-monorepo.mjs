@@ -5,7 +5,7 @@
  * Validates workspace configuration, inter-package dependencies, and build order.
  */
 
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, readdirSync } from 'fs';
 import { join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
@@ -15,9 +15,17 @@ const ROOT = resolve(__dirname, '..');
 const ERRORS = [];
 const WARNINGS = [];
 
-function error(msg) { ERRORS.push(msg); console.error(`  ✗ ${msg}`); }
-function warn(msg) { WARNINGS.push(msg); console.log(`  ⚠ ${msg}`); }
-function info(msg) { console.log(`  ✓ ${msg}`); }
+function error(msg) {
+  ERRORS.push(msg);
+  console.error(`  ✗ ${msg}`);
+}
+function warn(msg) {
+  WARNINGS.push(msg);
+  console.log(`  ⚠ ${msg}`);
+}
+function info(msg) {
+  console.log(`  ✓ ${msg}`);
+}
 
 // 1. Workspace config
 console.log('🔍 SoulCache Monorepo Validator\n');
@@ -33,7 +41,13 @@ const rootPkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8'));
 info(`Root: ${rootPkg.name} v${rootPkg.version}`);
 
 // 2. Check workspace packages
-const workspaceDirs = ['packages/core', 'packages/react', 'docs'];
+const workspaceDirs = readdirSync(join(ROOT, 'packages'))
+  .map((entry) => `packages/${entry}`)
+  .filter((dir) => existsSync(join(ROOT, dir, 'package.json')));
+if (existsSync(join(ROOT, 'docs/package.json'))) {
+  workspaceDirs.push('docs');
+}
+workspaceDirs.sort();
 const workspaceMap = new Map();
 
 for (const dir of workspaceDirs) {
@@ -82,7 +96,7 @@ const order = [];
 function visit(name) {
   if (visited.has(name)) return;
   visited.add(name);
-  for (const dep of (depGraph.get(name) || [])) {
+  for (const dep of depGraph.get(name) || []) {
     visit(dep);
   }
   order.push(name);
@@ -94,16 +108,27 @@ info(`Publish order: ${order.join(' → ')}`);
 
 // 5. Validate version consistency
 console.log('\nChecking versions...');
-for (const [name, { pkg }] of workspaceMap) {
-  if (pkg.version !== '0.1.0') {
-    warn(`${name} version is ${pkg.version} (expected 0.1.0 for pre-release)`);
+const publishable = [...workspaceMap.values()].filter(({ pkg }) => !pkg.private);
+const releaseVersions = new Map();
+for (const { pkg } of publishable) {
+  if (!releaseVersions.has(pkg.version)) releaseVersions.set(pkg.version, []);
+  releaseVersions.get(pkg.version).push(pkg.name);
+}
+if (releaseVersions.size > 1) {
+  for (const [version, names] of releaseVersions) {
+    warn(
+      `release packages ${names.join(', ')} are at version ${version} (not aligned with the release set)`,
+    );
   }
+} else {
+  const [version] = [...releaseVersions.keys()];
+  info(`All release packages share version ${version}`);
 }
 
 // 6. Validate build outputs
 console.log('\nChecking build outputs...');
 for (const [name, { dir, pkg }] of workspaceMap) {
-  if (dir === 'docs') continue;
+  if (dir === 'docs' || pkg.private) continue;
   const distDir = join(ROOT, dir, 'dist');
   if (!existsSync(distDir)) {
     warn(`${name}: dist/ directory not found (run pnpm build first)`);

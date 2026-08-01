@@ -1,4 +1,4 @@
-import { useSyncExternalStore, useCallback, useRef, useEffect } from 'react';
+import { useSyncExternalStore, useCallback, useMemo, useRef, useEffect } from 'react';
 import type { QueryKey, QueryStatus, FetchStatus } from '@soulcache/core';
 import { useSoulCacheContext } from './context';
 
@@ -89,19 +89,20 @@ export function useQuery<T>(options: UseQueryOptions<T>): QueryResult<T> {
   // this, every render creates a new array reference for queryKey, causing
   // useSyncExternalStore to tear down and rebuild subscriptions.
   const keyStr = JSON.stringify(queryKey);
+  const queryKeyMemo = useMemo<QueryKey>(() => JSON.parse(keyStr) as QueryKey, [keyStr]);
 
   const subscribe = useCallback(
-    (listener: () => void) => client.subscribeToQuery(queryKey, listener),
-    [client, keyStr],
+    (listener: () => void) => client.subscribeToQuery(queryKeyMemo, listener),
+    [client, queryKeyMemo],
   );
 
   const getSnapshot = useCallback(() => {
-    return client.getQuerySnapshot<T>(queryKey);
-  }, [client, keyStr]);
+    return client.getQuerySnapshot<T>(queryKeyMemo);
+  }, [client, queryKeyMemo]);
 
   const getServerSnapshot = useCallback(() => {
-    return client.getQuerySnapshot<T>(queryKey);
-  }, [client, keyStr]);
+    return client.getQuerySnapshot<T>(queryKeyMemo);
+  }, [client, queryKeyMemo]);
 
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 

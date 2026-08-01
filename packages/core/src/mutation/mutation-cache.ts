@@ -66,7 +66,6 @@ export class MutationCache {
       this.evictOldest();
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this._mutations.set(entry.id, entry as MutationEntry<unknown, unknown>);
 
     // Subscribe to entry changes to notify cache listeners
@@ -89,7 +88,6 @@ export class MutationCache {
   get<TData = unknown, TVariables = unknown>(
     mutationId: string,
   ): MutationEntry<TData, TVariables> | undefined {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return this._mutations.get(mutationId) as MutationEntry<TData, TVariables> | undefined;
   }
 

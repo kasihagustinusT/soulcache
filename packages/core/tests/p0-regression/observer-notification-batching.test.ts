@@ -196,7 +196,7 @@ describe('Batched observer notifications must be delivered', () => {
       queryKey: ['users'],
     });
 
-    let unsub1: () => void;
+    let unsub1 = () => {};
     unsub1 = obs1.subscribe((snap) => {
       callback1(snap);
       // Unsubscribe during notification — future notifications should not reach this callback

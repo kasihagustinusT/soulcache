@@ -13,7 +13,7 @@ describe('useQuery subscribe/getSnapshot stability', () => {
 
   it('subscribe reference is stable across re-renders', async () => {
     const client = new QueryClient();
-    const subscribeRefs: Array<Function> = [];
+    const subscribeRefs: Array<() => void> = [];
 
     function TestComponent() {
       const [, forceRender] = useState(0);

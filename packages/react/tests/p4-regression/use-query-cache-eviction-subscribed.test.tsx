@@ -11,7 +11,7 @@ describe('entry lifecycle while subscribed', () => {
     const key = ['remove-then-set'];
     client.setQueryData(key, 'initial');
 
-    let seenSnapshots: Array<ReturnType<typeof client.getQuerySnapshot<string>>> = [];
+    const seenSnapshots: Array<ReturnType<typeof client.getQuerySnapshot<string>>> = [];
 
     renderHook(
       () => {

@@ -148,8 +148,14 @@ export function useInfiniteQuery<TData, TPageParam = number>(
   // useSyncExternalStore to re-subscribe to the new instance.
   const [queryVersion, setQueryVersion] = useState(0);
 
+  // keyHash and queryVersion are intentional dependencies: they force
+  // useSyncExternalStore to re-subscribe when the query instance is
+  // recreated (e.g., StrictMode double-effect). The callback itself reads
+  // queryRef.current, so the reference points must be named in the body.
   const subscribe = useCallback(
     (listener: () => void) => {
+      void keyHash;
+      void queryVersion;
       const q = queryRef.current;
       if (!q) return () => {};
       return q.subscribe(listener);

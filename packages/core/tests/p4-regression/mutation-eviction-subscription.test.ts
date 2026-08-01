@@ -82,7 +82,7 @@ describe('MutationCache evictOldest must clean subscriptions', () => {
   });
 
   it('7. cleanup executes exactly once per entry', () => {
-    let destroyCount = 0;
+    const destroyCount = 0;
     const originalDestroy = Function.prototype;
 
     const entry = cache.create({

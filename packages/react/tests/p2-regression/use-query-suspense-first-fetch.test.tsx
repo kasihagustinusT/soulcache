@@ -42,7 +42,7 @@ describe('Suspense must handle first-time (undefined snapshot) queries', () => {
   it('2. first-time suspense query should not crash on snapshot access', async () => {
     const client = new QueryClient();
     let renderCount = 0;
-    let caughtError: Error | null = null;
+    const caughtError: Error | null = null;
 
     function TestComponent() {
       renderCount++;

@@ -165,7 +165,7 @@ describe('InfiniteQuery isFetching tracks all fetch phases', () => {
   });
 
   it('isFetching is false after fetchPreviousPage succeeds', async () => {
-    let callCount = 0;
+    const callCount = 0;
     query = new InfiniteQuery({
       queryKey: ['posts'],
       queryFn: async ({ pageParam }) => `page-${pageParam}`,

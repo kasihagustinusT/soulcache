@@ -10,6 +10,12 @@
  */
 
 import { QueryClient } from '@soulcache/core';
+import {
+  createDiagnostics,
+  createInspector,
+  createTimeline,
+  createTimelineEvent,
+} from '@soulcache/devtools-core';
 import { SoulCacheDevToolsPanel } from '@soulcache/devtools';
 import { useSoulCacheDevTools } from '@soulcache/devtools';
 
@@ -84,7 +90,6 @@ export default App;
 
 // Example: Direct usage of devtools-core (without React)
 export function exampleDirectUsage() {
-  const { createInspector, createTimeline, createDiagnostics, createTimelineEvent } = require('@soulcache/devtools-core');
   const inspector = createInspector();
   const timeline = createTimeline();
   const diagnostics = createDiagnostics();

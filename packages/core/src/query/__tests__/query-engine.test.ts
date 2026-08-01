@@ -278,7 +278,7 @@ describe('QueryEngine', () => {
 
       // While refetch is in-flight, replace the _refetchFns entry
       const keyHash = JSON.stringify(['users']);
-      const refetchFns = (queryEngine as unknown as { _refetchFns: Map<string, { queryFn: Function }> })._refetchFns;
+      const refetchFns = (queryEngine as unknown as { _refetchFns: Map<string, { queryFn: (...args: unknown[]) => unknown }> })._refetchFns;
       const newQueryFn = vi.fn(async () => ({ name: 'Bob' }));
       refetchFns.set(keyHash, { queryFn: newQueryFn });
 

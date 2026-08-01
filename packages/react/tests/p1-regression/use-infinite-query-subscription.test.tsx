@@ -88,7 +88,7 @@ describe('useInfiniteQuery subscription on mount', () => {
   });
 
   it('3. key change: old query destroyed, new subscription receives new data', async () => {
-    let fetchLog: string[] = [];
+    const fetchLog: string[] = [];
 
     function KeyChanger() {
       const [key, setKey] = useState('a');
