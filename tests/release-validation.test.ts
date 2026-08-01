@@ -236,9 +236,18 @@ void reactMut;
 // =============================================
 void queryKey;
 void queryKey2;
-void status; void status2; void status3; void status4; void status5;
-void fetchSt; void fetchSt2; void fetchSt3;
-void mutStatus; void mutStatus2; void mutStatus3; void mutStatus4;
+void status;
+void status2;
+void status3;
+void status4;
+void status5;
+void fetchSt;
+void fetchSt2;
+void fetchSt3;
+void mutStatus;
+void mutStatus2;
+void mutStatus3;
+void mutStatus4;
 void retryPolicy;
 void cached;
 void cacheEngine;
@@ -248,5 +257,17 @@ void storageManager;
 void eventBus;
 void subscriptionManager;
 void snapshotManager;
+
+// The module-level statements above execute the public API smoke usage on
+// import. This suite marker makes the file runnable under vitest so the
+// release validation executes in CI.
+import { describe, it, expect } from 'vitest';
+
+describe('v1.0.0 release validation', () => {
+  it('imports and instantiates the public API surface', () => {
+    expect(cacheEngine.getStats).toBeTypeOf('function');
+    expect(queryClient.fetchQuery).toBeTypeOf('function');
+  });
+});
 
 export {};
