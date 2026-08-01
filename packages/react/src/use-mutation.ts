@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useSoulCacheContext } from './context';
 import { generateId } from '@soulcache/core';
 import type { MutationStatus } from '@soulcache/core';
@@ -42,7 +42,12 @@ export interface UseMutationOptions<TData, TVariables> {
   /** Callback after mutation failure */
   readonly onError?: (error: Error, variables: TVariables, context: unknown) => void;
   /** Callback after mutation settles */
-  readonly onSettled?: (data: TData | undefined, error: Error | null, variables: TVariables, context: unknown) => void;
+  readonly onSettled?: (
+    data: TData | undefined,
+    error: Error | null,
+    variables: TVariables,
+    context: unknown,
+  ) => void;
 }
 
 /**
@@ -100,50 +105,103 @@ export function useMutation<TData, TVariables = void>(
   const stateRef = useRef(state);
   stateRef.current = state;
 
+  const isPendingRef = useRef(false);
+
+  // Track mount state to prevent setState after unmount
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const mutate = useCallback(
     (variables: TVariables) => {
-      const { status } = stateRef.current;
-      if (status === 'pending') return; // Prevent concurrent mutations
+      if (isPendingRef.current) return; // Prevent concurrent mutations
 
       let context: unknown = undefined;
 
+      isPendingRef.current = true;
       setState((prev) => ({
         ...prev,
         status: 'pending',
         variables,
       }));
 
-      // Execute onMutate
-      if (onMutate) {
-        context = onMutate(variables);
-      }
-
-      client.mutate<TData, TVariables>({
-        mutationId: generateId(),
-        mutationFn,
-        variables,
-      })
-        .then((data: TData) => {
-          setState((prev) => ({
-            ...prev,
-            status: 'success',
-            data,
-            error: null,
-          }));
-
-          onSuccess?.(data, variables, context);
-          onSettled?.(data, null, variables, context);
-        })
-        .catch((error: unknown) => {
-          const err = error instanceof Error ? error : new Error(String(error));
+      // Wrap onMutate in try-catch so a throw is captured as a mutation error
+      try {
+        if (onMutate) {
+          context = onMutate(variables);
+        }
+      } catch (onMutateError) {
+        const err =
+          onMutateError instanceof Error ? onMutateError : new Error(String(onMutateError));
+        // Only setState if the hook is still mounted
+        if (isMountedRef.current) {
+          isPendingRef.current = false;
           setState((prev) => ({
             ...prev,
             status: 'error',
             error: err,
           }));
+        }
+        // Do NOT call onError/onSettled — the mutation never executed
+        return;
+      }
 
-          onError?.(err, variables, context);
-          onSettled?.(undefined, err, variables, context);
+      client
+        .mutate<TData, TVariables>({
+          mutationId: generateId(),
+          mutationFn,
+          variables,
+        })
+        .then((data: TData) => {
+          // Only setState if the hook is still mounted
+          if (isMountedRef.current) {
+            isPendingRef.current = false;
+            setState((prev) => ({
+              ...prev,
+              status: 'success',
+              data,
+              error: null,
+            }));
+          }
+
+          // Wrap callbacks in try-catch so a callback throw does not cascade to .catch()
+          try {
+            onSuccess?.(data, variables, context);
+          } catch (_e) {
+            /* callback error must not corrupt mutation state */
+          }
+          try {
+            onSettled?.(data, null, variables, context);
+          } catch (_e) {
+            /* callback error must not corrupt mutation state */
+          }
+        })
+        .catch((error: unknown) => {
+          const err = error instanceof Error ? error : new Error(String(error));
+          // Only setState if the hook is still mounted
+          if (isMountedRef.current) {
+            isPendingRef.current = false;
+            setState((prev) => ({
+              ...prev,
+              status: 'error',
+              error: err,
+            }));
+          }
+
+          try {
+            onError?.(err, variables, context);
+          } catch (_e) {
+            /* callback error must not corrupt mutation state */
+          }
+          try {
+            onSettled?.(undefined, err, variables, context);
+          } catch (_e) {
+            /* callback error must not corrupt mutation state */
+          }
         });
     },
     [client, mutationFn, onMutate, onSuccess, onError, onSettled],
@@ -151,16 +209,104 @@ export function useMutation<TData, TVariables = void>(
 
   const mutateAsync = useCallback(
     (variables: TVariables): Promise<TData> => {
-      return client.mutate<TData, TVariables>({
-        mutationId: generateId(),
-        mutationFn,
+      if (isPendingRef.current) {
+        return Promise.reject(new Error('Mutation already in progress'));
+      }
+
+      let context: unknown = undefined;
+
+      isPendingRef.current = true;
+      setState((prev) => ({
+        ...prev,
+        status: 'pending',
         variables,
-      });
+      }));
+
+      // Wrap onMutate in try-catch so a throw is captured as a mutation error
+      try {
+        if (onMutate) {
+          context = onMutate(variables);
+        }
+      } catch (onMutateError) {
+        const err =
+          onMutateError instanceof Error ? onMutateError : new Error(String(onMutateError));
+        // Only setState if the hook is still mounted
+        if (isMountedRef.current) {
+          isPendingRef.current = false;
+          setState((prev) => ({
+            ...prev,
+            status: 'error',
+            error: err,
+          }));
+        }
+        // Do NOT call onError/onSettled — the mutation never executed
+        return Promise.reject(err);
+      }
+
+      return client
+        .mutate<TData, TVariables>({
+          mutationId: generateId(),
+          mutationFn,
+          variables,
+        })
+        .then((data: TData) => {
+          // Only setState if the hook is still mounted
+          if (isMountedRef.current) {
+            isPendingRef.current = false;
+            setState((prev) => ({
+              ...prev,
+              status: 'success',
+              data,
+              error: null,
+            }));
+          }
+
+          // Wrap callbacks in try-catch so a callback throw does not cascade to .catch()
+          try {
+            onSuccess?.(data, variables, context);
+          } catch (_e) {
+            /* callback error must not corrupt mutation state */
+          }
+          try {
+            onSettled?.(data, null, variables, context);
+          } catch (_e) {
+            /* callback error must not corrupt mutation state */
+          }
+
+          return data;
+        })
+        .catch((error: unknown) => {
+          const err = error instanceof Error ? error : new Error(String(error));
+
+          // Only setState if the hook is still mounted
+          if (isMountedRef.current) {
+            isPendingRef.current = false;
+            setState((prev) => ({
+              ...prev,
+              status: 'error',
+              error: err,
+            }));
+          }
+
+          try {
+            onError?.(err, variables, context);
+          } catch (_e) {
+            /* callback error must not corrupt mutation state */
+          }
+          try {
+            onSettled?.(undefined, err, variables, context);
+          } catch (_e) {
+            /* callback error must not corrupt mutation state */
+          }
+
+          throw err;
+        });
     },
-    [client, mutationFn],
+    [client, mutationFn, onMutate, onSuccess, onError, onSettled],
   );
 
   const reset = useCallback(() => {
+    isPendingRef.current = false;
     setState({
       status: 'idle',
       data: undefined,

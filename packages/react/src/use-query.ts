@@ -72,50 +72,102 @@ export function useQuery<T>(options: UseQueryOptions<T>): QueryResult<T> {
   const client = useSoulCacheContext();
   const { queryKey, queryFn, enabled = true } = options;
 
-  // Subscribe to query changes via useSyncExternalStore
+  // Store queryFn in a ref to avoid unnecessary re-fetches when the parent
+  // creates a new function reference on each render.
+  const queryFnRef = useRef(queryFn);
+  queryFnRef.current = queryFn;
+
+  // Store callbacks in refs so the effect doesn't depend on the options
+  // object (which changes every render when parents pass inline objects).
+  // The refs always read the latest callbacks.
+  const onSuccessRef = useRef(options.onSuccess);
+  const onErrorRef = useRef(options.onError);
+  onSuccessRef.current = options.onSuccess;
+  onErrorRef.current = options.onError;
+
+  // Stabilize subscribe and getSnapshot with a stringified key. Without
+  // this, every render creates a new array reference for queryKey, causing
+  // useSyncExternalStore to tear down and rebuild subscriptions.
+  const keyStr = JSON.stringify(queryKey);
+
   const subscribe = useCallback(
     (listener: () => void) => client.subscribeToQuery(queryKey, listener),
-    [client, queryKey],
+    [client, keyStr],
   );
 
   const getSnapshot = useCallback(() => {
     return client.getQuerySnapshot<T>(queryKey);
-  }, [client, queryKey]);
+  }, [client, keyStr]);
 
-  const snapshot = useSyncExternalStore(subscribe, getSnapshot);
+  const getServerSnapshot = useCallback(() => {
+    return client.getQuerySnapshot<T>(queryKey);
+  }, [client, keyStr]);
 
-  // Fetch on mount and when enabled
-  const enabledRef = useRef(enabled);
-  enabledRef.current = enabled;
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+
+  // Track the pending fetch promise for cleanup on unmount and read
+  // queryFnRef.current to avoid stale closures and unnecessary re-fetches.
+  const pendingFetchRef = useRef<Promise<unknown> | null>(null);
 
   useEffect(() => {
-    if (!enabledRef.current) return;
+    if (!enabled) return;
 
     const current = client.getQuerySnapshot<T>(queryKey);
     if (!current || current.status === 'idle') {
-      client.fetchQuery({ queryKey, queryFn }).catch(() => {
+      const promise = client.fetchQuery({ queryKey, queryFn: queryFnRef.current }).catch(() => {
         // Error handled via snapshot
       });
+      pendingFetchRef.current = promise;
     }
-  }, [client, queryKey, queryFn]);
 
-  // Handle callbacks
+    return () => {
+      pendingFetchRef.current = null;
+    };
+    // queryFn intentionally excluded from deps — the latest version is always
+    // read via queryFnRef.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client, queryKey, enabled]);
+
+  // Track the previous status so callbacks fire only on transitions, not on
+  // every matching snapshot change. Reset on key change so the new key
+  // starts with a clean slate.
+  const prevStatusRef = useRef<QueryStatus | undefined>(undefined);
+  const prevKeyStrRef = useRef<string | undefined>(undefined);
   const dataRef = useRef<T | undefined>(undefined);
   const errorRef = useRef<Error | null>(null);
 
   useEffect(() => {
     if (!snapshot) return;
 
-    if (snapshot.status === 'success' && snapshot.data !== dataRef.current) {
-      dataRef.current = snapshot.data;
-      options.onSuccess?.(snapshot.data as T);
+    // Reset tracking on key change so callbacks fire for the new key
+    if (prevKeyStrRef.current !== keyStr) {
+      prevKeyStrRef.current = keyStr;
+      prevStatusRef.current = undefined;
+      dataRef.current = undefined;
+      errorRef.current = null;
     }
 
-    if (snapshot.status === 'error' && snapshot.error !== errorRef.current) {
-      errorRef.current = snapshot.error;
-      options.onError?.(snapshot.error as Error);
+    const prevStatus = prevStatusRef.current;
+    prevStatusRef.current = snapshot.status;
+
+    if (
+      prevStatus !== 'success' &&
+      snapshot.status === 'success' &&
+      snapshot.data !== dataRef.current
+    ) {
+      dataRef.current = snapshot.data;
+      onSuccessRef.current?.(snapshot.data as T);
     }
-  }, [snapshot, options]);
+
+    if (
+      prevStatus !== 'error' &&
+      snapshot.status === 'error' &&
+      snapshot.error !== errorRef.current
+    ) {
+      errorRef.current = snapshot.error;
+      onErrorRef.current?.(snapshot.error as Error);
+    }
+  }, [snapshot, keyStr]);
 
   const isLoading = snapshot?.status === 'loading' && !snapshot?.data;
   const isFetching = snapshot?.fetchStatus === 'fetching';
@@ -124,8 +176,12 @@ export function useQuery<T>(options: UseQueryOptions<T>): QueryResult<T> {
   const isIdle = snapshot?.status === 'idle' || !snapshot;
 
   // Handle suspense
-  if (options.suspense && !snapshot?.data && snapshot?.status === 'loading') {
-    throw client.fetchQuery({ queryKey, queryFn });
+  // .catch() prevents an unhandled rejection if the Suspense boundary unmounts
+  // before the fetch settles. The error remains observable via snapshot state.
+  // A null/undefined snapshot (first-time query with no cache entry) is also
+  // treated as loading — the snapshot is undefined when no state machine exists.
+  if (options.suspense && !snapshot?.data && (!snapshot || snapshot?.status === 'loading')) {
+    throw client.fetchQuery({ queryKey, queryFn }).catch(() => {});
   }
 
   // Handle throwOnError

@@ -1,4 +1,4 @@
-import { useSyncExternalStore, useCallback, useRef, useEffect } from 'react';
+import { useSyncExternalStore, useCallback, useRef, useEffect, useState } from 'react';
 import type { QueryKey } from '@soulcache/core';
 import { InfiniteQuery } from '@soulcache/core';
 
@@ -105,10 +105,28 @@ export interface UseInfiniteQueryOptions<TData, TPageParam = number> {
 export function useInfiniteQuery<TData, TPageParam = number>(
   options: UseInfiniteQueryOptions<TData, TPageParam>,
 ): InfiniteQueryResult<TData> {
-  const queryRef = useRef<InfiniteQuery<TData, TPageParam> | null>(null);
+  const keyHash = JSON.stringify(options.queryKey);
 
-  // Create InfiniteQuery instance (lifecycle managed by effect)
-  useEffect(() => {
+  // ── Query instance lifecycle ───────────────────────────────────────
+  // The InfiniteQuery is created synchronously during render so that
+  // useSyncExternalStore's subscribe (called during React's commit phase,
+  // before effects) can access it via queryRef.current. This prevents
+  // the subscription from being a no-op on initial mount.
+
+  const queryRef = useRef<InfiniteQuery<TData, TPageParam> | null>(null);
+  const prevKeyHashRef = useRef(keyHash);
+
+  // On key change, destroy old query before creating a new one
+  if (prevKeyHashRef.current !== keyHash) {
+    if (queryRef.current) {
+      queryRef.current.destroy();
+    }
+    queryRef.current = null;
+    prevKeyHashRef.current = keyHash;
+  }
+
+  // Lazy-create query instance if not yet present
+  if (queryRef.current === null) {
     const queryConfig = {
       queryKey: options.queryKey,
       queryFn: options.queryFn as (context: { pageParam: TPageParam; signal?: AbortSignal }) => Promise<TData>,
@@ -119,55 +137,102 @@ export function useInfiniteQuery<TData, TPageParam = number>(
       } : {}),
       ...(options.maxPages !== undefined ? { maxPages: options.maxPages } : {}),
     };
-    const query = new InfiniteQuery<TData, TPageParam>(queryConfig);
+    queryRef.current = new InfiniteQuery<TData, TPageParam>(queryConfig);
+  }
 
-    queryRef.current = query;
+  const query = queryRef.current;
 
-    // Initial fetch
+  // ── Subscription ───────────────────────────────────────────────────
+  // queryVersion is incremented when the query instance is recreated
+  // after effect cleanup (e.g., React StrictMode double-effect), forcing
+  // useSyncExternalStore to re-subscribe to the new instance.
+  const [queryVersion, setQueryVersion] = useState(0);
+
+  const subscribe = useCallback(
+    (listener: () => void) => {
+      const q = queryRef.current;
+      if (!q) return () => {};
+      return q.subscribe(listener);
+    },
+    [keyHash, queryVersion],
+  );
+
+  // ── Snapshot memoization ───────────────────────────────────────────
+  const lastStateRef = useRef<{
+    pages: unknown[];
+    pageParams: unknown[];
+    error: Error | null;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+    isFetchingNextPage: boolean;
+    isFetchingPreviousPage: boolean;
+    isFetching: boolean;
+  } | null>(null);
+
+  const getSnapshot = useCallback(() => {
+    const q = queryRef.current;
+    if (!q) return null;
+    const s = q.state;
+    const prev = lastStateRef.current;
+    if (
+      prev !== null &&
+      prev.pages === s.pages &&
+      prev.pageParams === s.pageParams &&
+      prev.error === s.error &&
+      prev.hasNextPage === s.hasNextPage &&
+      prev.hasPreviousPage === s.hasPreviousPage &&
+      prev.isFetchingNextPage === s.isFetchingNextPage &&
+      prev.isFetchingPreviousPage === s.isFetchingPreviousPage &&
+      prev.isFetching === s.isFetching
+    ) {
+      return lastStateRef.current as typeof s;
+    }
+    lastStateRef.current = s;
+    return s;
+  }, []);
+
+  const state = useSyncExternalStore(subscribe, getSnapshot, () => null);
+
+  // ── Fetch and lifecycle ────────────────────────────────────────────
+  // Effect handles initial fetch and cleanup on key/enable change or unmount.
+  // The query itself is created during render (above), not in this effect.
+  // `query` is in the dependency array so the effect re-runs when the
+  // instance is recreated (key change or StrictMode cleanup/re-create).
+  useEffect(() => {
+    const q = queryRef.current;
+    if (!q || q.isDestroyed) return;
+
+    // Start initial fetch if enabled
     if (options.enabled !== false) {
-      query.fetch().catch(() => {
+      q.fetch().catch(() => {
         // Error handled via state
       });
     }
 
     return () => {
-      query.destroy();
+      q.destroy();
       queryRef.current = null;
+      // Force useSyncExternalStore to re-subscribe after cleanup.
+      // This handles React StrictMode where the effect runs, cleans up,
+      // then runs again — the re-subscribe ensures the new query instance
+      // is properly connected to the component.
+      setQueryVersion((v) => v + 1);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [options.queryKey]);
+  }, [keyHash, options.enabled, query]);
 
-  // Subscribe to infinite query state changes
-  const subscribe = useCallback(
-    (listener: () => void) => {
-      const query = queryRef.current;
-      if (!query) return () => {};
-      return query.subscribe(listener);
-    },
-    [],
-  );
-
-  const getSnapshot = useCallback(() => {
-    const query = queryRef.current;
-    if (!query) return null;
-    return query.state;
-  }, []);
-
-  const state = useSyncExternalStore(subscribe, getSnapshot, () => null);
-
+  // ── Derived values ─────────────────────────────────────────────────
   const fetchNextPage = useCallback(async (): Promise<boolean> => {
-    const query = queryRef.current;
-    if (!query) return false;
-    return query.fetchNextPage();
+    const q = queryRef.current;
+    if (!q) return false;
+    return q.fetchNextPage();
   }, []);
 
   const fetchPreviousPage = useCallback(async (): Promise<boolean> => {
-    const query = queryRef.current;
-    if (!query) return false;
-    return query.fetchPreviousPage();
+    const q = queryRef.current;
+    if (!q) return false;
+    return q.fetchPreviousPage();
   }, []);
 
-  const query = queryRef.current;
   const pages = (state?.pages ?? []).map((p) => ({
     data: p.data,
     pageParam: p.pageParam as number | string,
@@ -181,13 +246,13 @@ export function useInfiniteQuery<TData, TPageParam = number>(
     pages,
     pageParams,
     error: state?.error ?? null,
-    status: state?.pages?.length ? 'success' : 'loading',
-    fetchStatus: (query?.isFetchingNextPage || query?.isFetchingPreviousPage) ? 'fetching' : 'idle',
-    hasNextPage: query?.hasNextPage ?? false,
-    hasPreviousPage: query?.hasPreviousPage ?? false,
-    isFetchingNextPage: query?.isFetchingNextPage ?? false,
-    isFetchingPreviousPage: query?.isFetchingPreviousPage ?? false,
-    isFetching: (query?.isFetchingNextPage || query?.isFetchingPreviousPage) ?? false,
+    status: state?.error ? 'error' : (state?.pages?.length ? 'success' : 'loading'),
+    fetchStatus: state?.isFetching ? 'fetching' : 'idle',
+    hasNextPage: state?.hasNextPage ?? false,
+    hasPreviousPage: state?.hasPreviousPage ?? false,
+    isFetchingNextPage: state?.isFetchingNextPage ?? false,
+    isFetchingPreviousPage: state?.isFetchingPreviousPage ?? false,
+    isFetching: state?.isFetching ?? false,
     pageCount: pages.length,
     fetchNextPage,
     fetchPreviousPage,
