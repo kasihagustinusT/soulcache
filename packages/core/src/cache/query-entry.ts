@@ -150,6 +150,19 @@ export class QueryEntry<T = unknown> implements QueryRecord<T> {
   }
 
   /**
+   * Mark the entry as stale.
+   *
+   * Restored compatibility shim for the v1.0.0 API.
+   *
+   * @deprecated Prefer `markInvalidated()` or the client-level invalidation
+   * API. Removal is scheduled for a future major release.
+   */
+  markStale(): void {
+    this.status = 'stale';
+    this.staleAt = new Date().toISOString();
+  }
+
+  /**
    * Check if entry is expired based on gcTime.
    */
   isExpired(gcTime: number): boolean {
@@ -158,6 +171,25 @@ export class QueryEntry<T = unknown> implements QueryRecord<T> {
     }
     if (this._accessCount === 0 && this.observerCount === 0) {
       return Date.now() - this.createdAt > gcTime;
+    }
+    return false;
+  }
+
+  /**
+   * Check if the entry is stale based on staleTime.
+   *
+   * Restored compatibility shim for the v1.0.0 API.
+   *
+   * @param staleTime - Milliseconds after which an entry is considered stale
+   * @deprecated Prefer the query client's staleness handling. Removal is
+   * scheduled for a future major release.
+   */
+  isStale(staleTime: number): boolean {
+    if (this.staleAt !== null) {
+      return Date.now() > new Date(this.staleAt).getTime() + staleTime;
+    }
+    if (this.lastFetchedAt !== undefined) {
+      return Date.now() - this.lastFetchedAt > staleTime;
     }
     return false;
   }
