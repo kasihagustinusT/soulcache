@@ -65,16 +65,16 @@ describe('QueryEntry', () => {
     expect(entry.state).toBe('error');
   });
 
-  it('should mark as stale', () => {
+  it('should mark as invalidated', () => {
     const entry = new QueryEntry({
       queryId: 'test-123',
       queryKey: ['users'],
       keyHash: '["users"]',
     });
 
-    entry.markStale();
+    entry.markInvalidated();
 
-    expect(entry.state).toBe('stale');
+    expect(entry.state).toBe('invalidated');
     expect(entry.staleAt).toBeTypeOf('string');
   });
 
@@ -192,13 +192,13 @@ describe('CacheEngine', () => {
   });
 
   describe('invalidate', () => {
-    it('should mark entry as stale', () => {
+    it('should mark entry as invalidated', () => {
       cache.set({ queryKey: ['users', 123], state: 'success' });
       const invalidated = cache.invalidate(['users', 123]);
 
       expect(invalidated).toBe(true);
       const entry = cache.get(['users', 123]);
-      expect(entry?.state).toBe('stale');
+      expect(entry?.state).toBe('invalidated');
     });
 
     it('should return false for non-existent key', () => {
@@ -276,6 +276,33 @@ describe('CacheEngine', () => {
       // Force expired by manipulating expiresAt
       (entry as any).expiresAt = new Date(Date.now() - 100000).toISOString();
 
+      const removed = cache.collectGarbage();
+      expect(removed).toBe(1);
+      expect(cache.size).toBe(0);
+    });
+
+    it('should not GC entry with active fetch', () => {
+      const entry = cache.set({ queryKey: ['users', 1] });
+      entry.fetchStatus = 'fetching';
+      // Force expired by manipulating expiresAt so it would be eligible
+      (entry as any).expiresAt = new Date(Date.now() - 100000).toISOString();
+
+      const removed = cache.collectGarbage();
+      expect(removed).toBe(0);
+      expect(cache.size).toBe(1);
+    });
+
+    it('should GC entry when fetch completes and entry is expired', () => {
+      const entry = cache.set({ queryKey: ['users', 1] });
+      entry.fetchStatus = 'fetching';
+      (entry as any).expiresAt = new Date(Date.now() - 100000).toISOString();
+
+      // GC should skip it while fetching
+      cache.collectGarbage();
+      expect(cache.size).toBe(1);
+
+      // Mark fetch as complete
+      entry.fetchStatus = 'idle';
       const removed = cache.collectGarbage();
       expect(removed).toBe(1);
       expect(cache.size).toBe(0);

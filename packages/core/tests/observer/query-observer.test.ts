@@ -223,7 +223,7 @@ describe('QueryObserver', () => {
       expect(observer.getSnapshot().status).toBe('error');
 
       observer.setState('stale');
-      expect(observer.getSnapshot().status).toBe('fetching');
+      expect(observer.getSnapshot().status).toBe('success');
     });
 
     it('should accept additional snapshot fields', () => {

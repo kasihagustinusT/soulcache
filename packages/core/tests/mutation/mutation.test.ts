@@ -177,14 +177,11 @@ describe('MutationEntry', () => {
   });
 
   describe('cancel', () => {
-    it('should cancel in-flight mutation', async () => {
-      let resolveFn: (value: string) => void;
+    it('should cancel in-flight mutation and set error status', async () => {
       const entry = new MutationEntry({
         mutationId: 'mut-cancel',
         mutationFn: async () => {
-          return new Promise<string>((resolve) => {
-            resolveFn = resolve;
-          });
+          return new Promise<string>(() => {});
         },
       });
 
@@ -194,8 +191,42 @@ describe('MutationEntry', () => {
       // The mutation was cancelled, so it should reject
       await expect(promise).rejects.toThrow('Mutation cancelled');
 
-      // Resolve to avoid unhandled rejection
-      resolveFn!('done');
+      // Entry state should reflect cancellation
+      expect(entry.status).toBe('error');
+      expect(entry.isError).toBe(true);
+      expect(entry.error?.message).toBe('Mutation cancelled');
+    });
+
+    it('should notify listeners when mutation is cancelled', async () => {
+      const listener = vi.fn();
+      const entry = new MutationEntry({
+        mutationId: 'mut-cancel-notify',
+        mutationFn: async () => {
+          return new Promise<string>(() => {});
+        },
+      });
+
+      entry.subscribe(listener);
+      const promise = entry.mutate({});
+      entry.cancel();
+
+      await expect(promise).rejects.toThrow('Mutation cancelled');
+
+      // listener called for pending + error
+      expect(listener).toHaveBeenCalledTimes(2);
+      expect(entry.status).toBe('error');
+    });
+
+    it('should be no-op when no in-flight mutation', () => {
+      const entry = new MutationEntry({
+        mutationId: 'mut-cancel-noop',
+        mutationFn: async () => 'data',
+      });
+
+      entry.cancel();
+
+      expect(entry.status).toBe('idle');
+      expect(entry.error).toBeNull();
     });
   });
 

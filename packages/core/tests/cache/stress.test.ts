@@ -79,10 +79,10 @@ describe('CacheEngine Stress Tests', () => {
 
     expect(duration).toBeLessThan(500);
 
-    // All entries should be stale
+    // All entries should be invalidated
     for (let i = 0; i < 1000; i++) {
       const entry = cache.get(['stress', 'invalidate', i]);
-      expect(entry?.state).toBe('stale');
+      expect(entry?.state).toBe('invalidated');
     }
   });
 

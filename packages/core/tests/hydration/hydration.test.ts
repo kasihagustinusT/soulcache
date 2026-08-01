@@ -87,7 +87,7 @@ describe('Hydration Runtime', () => {
     it('should skip stale queries by default', () => {
       cache.set({ queryKey: ['a'], data: 1, state: 'success' });
       const entry = cache.get(['a']);
-      if (entry) entry.markStale();
+      if (entry) { entry.state = 'stale'; entry.status = 'stale'; }
 
       const state = dehydrate(cache);
       expect(state.queries).toHaveLength(0);
@@ -96,7 +96,7 @@ describe('Hydration Runtime', () => {
     it('should include stale queries when option is set', () => {
       cache.set({ queryKey: ['a'], data: 1, state: 'success' });
       const entry = cache.get(['a']);
-      if (entry) entry.markStale();
+      if (entry) { entry.state = 'stale'; entry.status = 'stale'; }
 
       const state = dehydrate(cache, { includeStale: true });
       expect(state.queries).toHaveLength(1);
