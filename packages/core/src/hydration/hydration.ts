@@ -40,8 +40,8 @@ export function dehydrate(
   for (const entry of entries) {
     if (queries.length >= maxQueries) break;
 
-    // Skip stale entries unless explicitly included
-    if (!includeStale && entry.state === 'stale') continue;
+    // Skip stale or invalidated entries unless explicitly included
+    if (!includeStale && (entry.state === 'stale' || entry.state === 'invalidated')) continue;
 
     // Skip error entries unless explicitly included
     if (!includeErrors && entry.state === 'error') continue;

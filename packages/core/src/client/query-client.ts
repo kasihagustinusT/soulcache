@@ -1,7 +1,6 @@
 import type { QueryKey, Updater } from '../types/query.types';
 import type { QueryClientConfig } from '../types/client.types';
 import type { QuerySnapshot } from '../types/observer.types';
-import type { QueryRecordState } from '../types/internal.types';
 import type { QueryStatus, FetchStatus } from '../types/query.types';
 import type { CacheEventPayload } from '../types/events.types';
 import { CacheEngine } from '../cache/cache-engine';
@@ -12,33 +11,7 @@ import { Scheduler } from '../scheduler/scheduler';
 import { EventBus } from '../events/event-bus';
 import { SoulCacheError, RuntimeError } from '../errors/soulcache-error';
 import { ErrorCode } from '../errors/error-codes';
-import { hashQueryKey, generateId } from '../utils/query.utils';
-
-/**
- * Map internal QueryRecordState to public QueryStatus.
- * Shared between QueryClient and QueryObserver.
- */
-function mapStateToStatus(state: QueryRecordState): QueryStatus {
-  switch (state) {
-    case 'idle':
-      return 'idle';
-    case 'pending':
-    case 'fetching':
-      return 'loading';
-    case 'success':
-      return 'success';
-    case 'error':
-      return 'error';
-    case 'stale':
-      return 'fetching';
-    case 'invalidated':
-      return 'loading';
-    case 'destroyed':
-      return 'idle';
-    default:
-      return 'idle';
-  }
-}
+import { hashQueryKey, generateId, isKeyPrefixOf, mapStateToStatus } from '../utils/query.utils';
 
 /**
  * Query Client
@@ -79,20 +52,54 @@ export class QueryClient {
   private readonly _config: QueryClientConfig;
   private readonly _stateMachines: Map<string, QueryStateMachine> = new Map();
   private readonly _observers: Map<string, Set<QueryObserver<unknown>>> = new Map();
-  private readonly _pendingFetches: Map<string, Promise<unknown>> = new Map();
+  private readonly _pendingFetches: Map<
+    string,
+    {
+      fetchPromise: Promise<unknown>;
+      abortPromise: Promise<unknown>;
+      abortReject: (error: Error) => void;
+    }
+  > = new Map();
+  private static readonly _SNAPSHOT_CACHE_MAX = 10000;
   private readonly _snapshotCache: Map<string, QuerySnapshot<unknown>> = new Map();
+  private readonly _snapshotCacheOrder: string[] = [];
   private _destroyed: boolean;
 
   constructor(config?: QueryClientConfig) {
     this._config = config ?? {};
-    const cacheOptions: { staleTime?: number; gcTime?: number } = {};
+    const cacheOptions: { staleTime?: number; gcTime?: number; gcInterval?: number } = {};
     if (this._config.defaultOptions?.staleTime !== undefined) {
       cacheOptions.staleTime = this._config.defaultOptions.staleTime;
     }
     if (this._config.defaultOptions?.gcTime !== undefined) {
       cacheOptions.gcTime = this._config.defaultOptions.gcTime;
     }
-    this._cache = new CacheEngine(cacheOptions);
+    if (this._config.defaultOptions?.gcInterval !== undefined) {
+      cacheOptions.gcInterval = this._config.defaultOptions.gcInterval;
+    }
+    this._cache = new CacheEngine({
+      ...cacheOptions,
+      onEvict: (keyHash: string) => {
+        const sm = this._stateMachines.get(keyHash);
+        if (sm) {
+          sm.destroy();
+          this._stateMachines.delete(keyHash);
+        }
+        this._snapshotCache.delete(keyHash);
+        const observerSet = this._observers.get(keyHash);
+        if (observerSet) {
+          for (const observer of observerSet) {
+            try {
+              observer.destroy();
+            } catch {
+              /* isolate */
+            }
+          }
+          this._observers.delete(keyHash);
+        }
+        this._rejectPendingFetchForKey(keyHash);
+      },
+    });
     this._mutationCache = new MutationCache();
     this._eventBus = new EventBus();
     this._scheduler = new Scheduler({ eventBus: this._eventBus });
@@ -153,7 +160,11 @@ export class QueryClient {
     readonly onMutate?: (variables: TVariables) => unknown;
     readonly onSuccess?: (data: TData, variables: TVariables) => void;
     readonly onError?: (error: Error, variables: TVariables) => void;
-    readonly onSettled?: (data: TData | undefined, error: Error | null, variables: TVariables) => void;
+    readonly onSettled?: (
+      data: TData | undefined,
+      error: Error | null,
+      variables: TVariables,
+    ) => void;
     readonly retry?: number;
     readonly retryDelay?: number;
   }): Promise<TData> {
@@ -188,14 +199,20 @@ export class QueryClient {
       return undefined;
     }
 
-    const status: QueryStatus = mapStateToStatus(entry?.state ?? 'idle');
+    // Prefer state machine state (unless 'idle') to prevent status divergence
+    // between subscribeToQuery and subscribe. After invalidateQueries, the
+    // entry.state may still be 'stale' while the SM is 'invalidated', which
+    // would otherwise return status 'fetching' vs 'loading'.
+    // When the SM is 'idle' but the entry has meaningful state (e.g.
+    // setQueryData pre-populated the cache without a fetch lifecycle), prefer
+    // entry state so getQuerySnapshot doesn't report 'idle' for existing data.
+    const effectiveState = sm && sm.state !== 'idle' ? sm.state : (entry?.state ?? 'idle');
+    const status: QueryStatus = mapStateToStatus(effectiveState);
     const fetchStatus: FetchStatus = entry?.fetchStatus ?? 'idle';
     const data = entry?.data;
     const error = entry?.error ?? null;
     // Convert ISO-8601 string to number for public API
-    const updatedAt = entry?.updatedAt
-      ? new Date(entry.updatedAt).getTime()
-      : Date.now();
+    const updatedAt = entry?.updatedAt ? new Date(entry.updatedAt).getTime() : Date.now();
 
     // Return cached snapshot if nothing changed (structural sharing for useSyncExternalStore)
     const cached = this._snapshotCache.get(keyHash) as QuerySnapshot<T> | undefined;
@@ -219,6 +236,20 @@ export class QueryClient {
     }) as QuerySnapshot<T>;
 
     this._snapshotCache.set(keyHash, snapshot);
+    this._snapshotCacheOrder.push(keyHash);
+    if (this._snapshotCache.size > QueryClient._SNAPSHOT_CACHE_MAX) {
+      const oldest = this._snapshotCacheOrder.shift();
+      if (oldest !== undefined) {
+        this._snapshotCache.delete(oldest);
+      }
+    }
+
+    // Compaction: if stale entries accumulate from individual deletions
+    // (onEvict, removeQuery, getQuerySnapshot miss), drain them in bulk.
+    if (this._snapshotCacheOrder.length > QueryClient._SNAPSHOT_CACHE_MAX * 2) {
+      const valid = this._snapshotCacheOrder.filter((h) => this._snapshotCache.has(h));
+      this._snapshotCacheOrder.splice(0, this._snapshotCacheOrder.length, ...valid);
+    }
     return snapshot;
   }
 
@@ -233,14 +264,20 @@ export class QueryClient {
    * @param listener - Function called on each state change (no arguments)
    * @returns Unsubscribe function
    */
-  subscribeToQuery(
-    queryKey: QueryKey,
-    listener: () => void,
-  ): () => void {
+  subscribeToQuery(queryKey: QueryKey, listener: () => void): () => void {
     this.assertNotDestroyed();
 
     const keyHash = hashQueryKey(queryKey);
     this._ensureStateMachine(keyHash, queryKey);
+
+    // Increment observerCount so LRU eviction and GC protect actively-used
+    // entries from React useQuery subscriptions. Without this,
+    // subscribeToQuery never incremented observerCount, so evict() saw
+    // observerCount=0 for mounted queries.
+    const entry = this._cache.get(queryKey);
+    if (entry) {
+      entry.observerCount++;
+    }
 
     // Wire state machine transitions to notify the bare listener.
     const sm = this._stateMachines.get(keyHash);
@@ -259,6 +296,25 @@ export class QueryClient {
     return () => {
       unsubTransition?.();
       unsubCache();
+
+      // Decrement observer count on the ORIGINAL cache entry captured at
+      // subscribe time. A fresh lookup could return a different entry if
+      // the original was destroyed and re-created (removeQuery + fetchQuery),
+      // which would corrupt the new entry's observerCount.
+      if (entry && entry.observerCount > 0) {
+        entry.observerCount--;
+      }
+
+      // If no cache entry exists for this key, the state machine was created
+      // solely for this subscription's transition listening. Clean it up to
+      // prevent orphaned state machine accumulation.
+      if (!this._cache.has(queryKey)) {
+        const orphanSm = this._stateMachines.get(keyHash);
+        if (orphanSm) {
+          orphanSm.destroy();
+          this._stateMachines.delete(keyHash);
+        }
+      }
     };
   }
 
@@ -273,10 +329,7 @@ export class QueryClient {
    * @throws {RuntimeError} if client is destroyed
    * @throws {SoulCacheError} if fetchFn is not provided
    */
-  async fetchQuery<T>(options: {
-    queryKey: QueryKey;
-    queryFn: () => Promise<T>;
-  }): Promise<T> {
+  async fetchQuery<T>(options: { queryKey: QueryKey; queryFn: () => Promise<T> }): Promise<T> {
     this.assertNotDestroyed();
 
     const { queryKey, queryFn } = options;
@@ -290,19 +343,29 @@ export class QueryClient {
 
     const keyHash = hashQueryKey(queryKey);
 
-    // Deduplicate in-flight requests
+    // Deduplicate in-flight requests — race against shared abort signal
     const pending = this._pendingFetches.get(keyHash);
     if (pending) {
-      return pending as Promise<T>;
+      return Promise.race([pending.fetchPromise, pending.abortPromise]) as Promise<T>;
     }
 
+    // Create abort signal that can be rejected externally by clear/destroy
+    let abortReject!: (error: Error) => void;
+    const abortPromise = new Promise<unknown>((_resolve, reject) => {
+      abortReject = reject;
+    });
+
     const fetchPromise = this._executeFetch<T>(queryKey, queryFn);
-    this._pendingFetches.set(keyHash, fetchPromise);
+    const entry = { fetchPromise, abortPromise, abortReject };
+    this._pendingFetches.set(keyHash, entry);
 
     try {
-      return await fetchPromise;
+      // Race the internal fetch against the abort signal
+      return (await Promise.race([fetchPromise, abortPromise])) as T;
     } finally {
-      this._pendingFetches.delete(keyHash);
+      if (this._pendingFetches.get(keyHash) === entry) {
+        this._pendingFetches.delete(keyHash);
+      }
     }
   }
 
@@ -335,9 +398,7 @@ export class QueryClient {
 
     const prevData = existing?.data;
     const nextData =
-      typeof updater === 'function'
-        ? (updater as (prev: T | undefined) => T)(prevData)
-        : updater;
+      typeof updater === 'function' ? (updater as (prev: T | undefined) => T)(prevData) : updater;
 
     // Update cache
     this._cache.set({
@@ -377,22 +438,31 @@ export class QueryClient {
    * @param callback - Invoked with each new snapshot
    * @returns Unsubscribe function
    */
-  subscribe<T>(
-    queryKey: QueryKey,
-    callback: (snapshot: QuerySnapshot<T>) => void,
-  ): () => void {
+  subscribe<T>(queryKey: QueryKey, callback: (snapshot: QuerySnapshot<T>) => void): () => void {
     this.assertNotDestroyed();
 
     const keyHash = hashQueryKey(queryKey);
     const queryId = this._ensureStateMachine(keyHash, queryKey);
 
-    // Get existing data for initial snapshot
+    // Get existing data for initial snapshot.
+    // Capture entry reference for the unsubscribe callback — a fresh lookup
+    // at unsubscribe time would return a DIFFERENT entry if the original was
+    // destroyed and re-created (via removeQuery + fetchQuery), corrupting
+    // the new entry's observerCount.
     const entry = this._cache.get<T>(queryKey);
 
     const observerOptions: {
       queryId: string;
       queryKey: readonly unknown[];
-      initialState?: 'idle' | 'pending' | 'success' | 'error' | 'fetching' | 'stale' | 'invalidated' | 'destroyed';
+      initialState?:
+        | 'idle'
+        | 'pending'
+        | 'success'
+        | 'error'
+        | 'fetching'
+        | 'stale'
+        | 'invalidated'
+        | 'destroyed';
       initialData?: T;
       initialError?: Error | null;
       eventBus: EventBus;
@@ -433,12 +503,18 @@ export class QueryClient {
       const updateOptions: {
         data?: T;
         error?: Error | null;
+        fetchStatus?: 'idle';
       } = {};
-      if (entry?.data !== undefined) {
-        updateOptions.data = entry.data;
+      // Re-fetch entry from cache — the original may have been deleted and re-created
+      const currentEntry = this._cache.get<T>(queryKey);
+      if (currentEntry?.data !== undefined) {
+        updateOptions.data = currentEntry.data;
       }
-      if (entry?.error !== undefined && entry.error !== null) {
-        updateOptions.error = entry.error;
+      if (currentEntry?.error !== undefined && currentEntry.error !== null) {
+        updateOptions.error = currentEntry.error;
+      }
+      if (to === 'success' || to === 'error') {
+        updateOptions.fetchStatus = 'idle';
       }
       observer.setState(to, updateOptions);
     });
@@ -461,10 +537,12 @@ export class QueryClient {
 
       observer.destroy();
 
-      // Decrement observer count on cache entry
-      const cacheEntry = this._cache.get(queryKey);
-      if (cacheEntry && cacheEntry.observerCount > 0) {
-        cacheEntry.observerCount--;
+      // Decrement observer count on the ORIGINAL cache entry captured at
+      // subscribe time. A fresh lookup could return a different entry if
+      // the original was destroyed and re-created (removeQuery + fetchQuery),
+      // which would corrupt the new entry's observerCount.
+      if (entry && entry.observerCount > 0) {
+        entry.observerCount--;
       }
     };
   }
@@ -480,16 +558,12 @@ export class QueryClient {
   async invalidateQueries(queryKey: QueryKey): Promise<void> {
     this.assertNotDestroyed();
 
-    const targetHash = hashQueryKey(queryKey);
-
     for (const entry of this._cache.entries()) {
-      const entryHash = entry.keyHash;
-
-      // Match exact or prefix
-      if (entryHash === targetHash || entryHash.startsWith(targetHash.slice(0, -1))) {
+      // Match exact key or structural query-key prefix
+      if (isKeyPrefixOf(queryKey, entry.queryKey)) {
         this._cache.invalidate(entry.queryKey);
 
-        const sm = this._stateMachines.get(entryHash);
+        const sm = this._stateMachines.get(entry.keyHash);
         if (sm && sm.canTransition('invalidated')) {
           sm.transition('invalidated');
         }
@@ -497,7 +571,7 @@ export class QueryClient {
         this._eventBus.emit({
           type: 'query.invalidated',
           source: 'internal',
-          payload: { queryId: entryHash, queryKey: entry.queryKey },
+          payload: { queryId: entry.keyHash, queryKey: entry.queryKey },
         });
       }
     }
@@ -507,6 +581,7 @@ export class QueryClient {
    * Remove a query from the cache entirely.
    *
    * Destroys the state machine and all observers for the query.
+   * Also rejects any pending fetch for the removed key.
    *
    * @param queryKey - The query key to remove
    */
@@ -519,7 +594,11 @@ export class QueryClient {
     const observerSet = this._observers.get(keyHash);
     if (observerSet) {
       for (const observer of observerSet) {
-        observer.destroy();
+        try {
+          observer.destroy();
+        } catch {
+          /* isolate */
+        }
       }
       this._observers.delete(keyHash);
     }
@@ -527,9 +606,23 @@ export class QueryClient {
     // Destroy state machine
     const sm = this._stateMachines.get(keyHash);
     if (sm) {
-      sm.destroy();
+      try {
+        sm.destroy();
+      } catch {
+        /* isolate */
+      }
       this._stateMachines.delete(keyHash);
     }
+
+    // Reject pending fetches for this key to prevent ghost entries
+    this._rejectPendingFetchForKey(keyHash);
+
+    // Remove snapshot cache entry to prevent memory leak
+    this._snapshotCache.delete(keyHash);
+
+    // Notify external cleanup hooks (e.g. QueryEngine) so refetch timers,
+    // abort controllers, and refetch functions are cleaned up.
+    this._config.onRemoveQuery?.(keyHash, queryKey);
 
     // Remove from cache
     this._cache.delete(queryKey);
@@ -555,22 +648,36 @@ export class QueryClient {
     // Destroy all observers
     for (const observerSet of this._observers.values()) {
       for (const observer of observerSet) {
-        observer.destroy();
+        try {
+          observer.destroy();
+        } catch {
+          /* isolate */
+        }
       }
     }
     this._observers.clear();
 
     // Destroy all state machines
     for (const sm of this._stateMachines.values()) {
-      sm.destroy();
+      try {
+        sm.destroy();
+      } catch {
+        /* isolate */
+      }
     }
     this._stateMachines.clear();
 
-    // Clear pending fetches
-    this._pendingFetches.clear();
+    // Reject all pending fetches before clearing
+    this._rejectPendingFetches(
+      new RuntimeError({
+        code: ErrorCode.CANCELLED,
+        message: 'Fetch was cancelled by client clear()',
+      }),
+    );
 
     // Clear snapshot cache
     this._snapshotCache.clear();
+    this._snapshotCacheOrder.length = 0;
 
     // Clear cache
     this._cache.clear();
@@ -600,25 +707,39 @@ export class QueryClient {
     // Destroy all observers
     for (const observerSet of this._observers.values()) {
       for (const observer of observerSet) {
-        observer.destroy();
+        try {
+          observer.destroy();
+        } catch {
+          /* isolate */
+        }
       }
     }
     this._observers.clear();
 
     // Destroy all state machines
     for (const sm of this._stateMachines.values()) {
-      sm.destroy();
+      try {
+        sm.destroy();
+      } catch {
+        /* isolate */
+      }
     }
     this._stateMachines.clear();
 
-    // Clear pending fetches
-    this._pendingFetches.clear();
+    // Reject all pending fetches before clearing
+    this._rejectPendingFetches(
+      new RuntimeError({
+        code: ErrorCode.CANCELLED,
+        message: 'Fetch was cancelled by client destroy()',
+      }),
+    );
 
     // Clear snapshot cache
     this._snapshotCache.clear();
+    this._snapshotCacheOrder.length = 0;
 
-    // Clear cache and event bus
-    this._cache.clear();
+    // Destroy cache (clears entries AND stops GC timer) and mutation cache
+    this._cache.destroy();
     this._mutationCache.destroy();
     this._eventBus.clear();
   }
@@ -633,6 +754,41 @@ export class QueryClient {
         code: ErrorCode.ALREADY_DESTROYED,
         message: 'QueryClient has been destroyed',
       });
+    }
+  }
+
+  /**
+   * Reject all pending fetch operations with the given error.
+   * Must be called before clearing the pending fetches map.
+   */
+  private _rejectPendingFetches(error: Error): void {
+    for (const [, entry] of this._pendingFetches) {
+      try {
+        entry.abortReject(error);
+      } catch (_error) {
+        // Reject handlers must not crash the runtime
+      }
+    }
+    this._pendingFetches.clear();
+  }
+
+  /**
+   * Reject pending fetch for a specific key.
+   */
+  private _rejectPendingFetchForKey(keyHash: string): void {
+    const pending = this._pendingFetches.get(keyHash);
+    if (pending) {
+      try {
+        pending.abortReject(
+          new RuntimeError({
+            code: ErrorCode.CANCELLED,
+            message: 'Fetch was cancelled by removeQuery()',
+          }),
+        );
+      } catch (_error) {
+        // Reject handlers must not crash the runtime
+      }
+      this._pendingFetches.delete(keyHash);
     }
   }
 
@@ -651,10 +807,7 @@ export class QueryClient {
     return sm.queryId;
   }
 
-  private async _executeFetch<T>(
-    queryKey: QueryKey,
-    queryFn: () => Promise<T>,
-  ): Promise<T> {
+  private async _executeFetch<T>(queryKey: QueryKey, queryFn: () => Promise<T>): Promise<T> {
     const keyHash = hashQueryKey(queryKey);
 
     // Ensure state machine exists
@@ -667,6 +820,24 @@ export class QueryClient {
         message: `Failed to create state machine for query "${keyHash}"`,
       });
     }
+
+    // Create the cache entry before SM transitions so getQuerySnapshot() can
+    // read fetchStatus 'fetching' when SM transition listeners call it.
+    // Without this, brand-new queries return status 'idle' throughout the
+    // entire fetch lifecycle.
+    if (!this._cache.has(queryKey)) {
+      this._cache.set({ queryKey, state: 'pending' });
+    }
+    const entry = this._cache.get(queryKey);
+    const capturedVersion = entry?.version ?? -1;
+    if (entry) {
+      entry.fetchStatus = 'fetching';
+    }
+
+    // Capture SM reference before the async fetch. If the query is removed and
+    // re-added during the fetch, a NEW state machine is created at the same hash.
+    // Writing to the new SM would silently corrupt its initial state.
+    const smRef = sm;
 
     // Transition: idle/stale/error -> pending -> fetching
     if (sm.canTransition('pending')) {
@@ -682,12 +853,6 @@ export class QueryClient {
       payload: { queryId: keyHash, queryKey },
     });
 
-    // Update cache entry to fetching state
-    const entry = this._cache.get(queryKey);
-    if (entry) {
-      entry.fetchStatus = 'fetching';
-    }
-
     // Notify observers of loading state
     this._notifyObservers(keyHash, (observer) => {
       (observer as QueryObserver<T>).setFetchStatus('fetching');
@@ -695,6 +860,17 @@ export class QueryClient {
 
     try {
       const data = await queryFn();
+
+      // Guard: if the state machine was removed during the fetch (removeQuery),
+      // or replaced by a new entry with the same key (remove + re-add),
+      // do not write to the now-stale state machine.
+      if (this._stateMachines.get(keyHash) !== smRef) {
+        return data;
+      }
+
+      if (entry && entry.version !== capturedVersion) {
+        return data;
+      }
 
       // Store in cache
       this._cache.set({
@@ -729,6 +905,17 @@ export class QueryClient {
       return data;
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
+
+      // Guard: if the state machine was removed during the fetch (removeQuery),
+      // or replaced by a new entry with the same key (remove + re-add),
+      // do not write to the now-stale state machine.
+      if (this._stateMachines.get(keyHash) !== smRef) {
+        throw err;
+      }
+
+      if (entry && entry.version !== capturedVersion) {
+        throw err;
+      }
 
       // Store error in cache
       this._cache.set({

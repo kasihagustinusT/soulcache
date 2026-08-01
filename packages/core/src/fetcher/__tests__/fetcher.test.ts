@@ -415,6 +415,33 @@ describe('Fetcher', () => {
     });
   });
 
+  describe('external signal cleanup', () => {
+    it('should clean up external signal listener after successful request', async () => {
+      mockFetch.mockResolvedValue(jsonResponse({ ok: true }));
+
+      const externalController = new AbortController();
+      await fetcher.execute(
+        ['ext-signal'],
+        { url: '/api/ext-signal', signal: externalController.signal },
+      );
+
+      const cleanups = (fetcher as unknown as { _signalCleanups: Map<string, unknown> })._signalCleanups;
+      expect(cleanups.size).toBe(0);
+    });
+
+    it('should clean up external signal listener after failed request', async () => {
+      mockFetch.mockResolvedValue(errorResponse(500));
+
+      await fetcher.execute(
+        ['ext-signal-fail'],
+        { url: '/api/ext-signal-fail', signal: new AbortController().signal },
+      ).catch(() => {});
+
+      const cleanups = (fetcher as unknown as { _signalCleanups: Map<string, unknown> })._signalCleanups;
+      expect(cleanups.size).toBe(0);
+    });
+  });
+
   describe('inFlightCount', () => {
     it('should track in-flight requests', async () => {
       let resolve!: (value: Response) => void;

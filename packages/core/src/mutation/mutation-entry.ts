@@ -70,6 +70,7 @@ export class MutationEntry<TData = unknown, TVariables = unknown> {
   private _updatedAt: number;
   private _destroyed: boolean;
   private _abortController: AbortController | null;
+  private _retryCancelled: boolean;
   private _listeners: Set<() => void>;
 
   constructor(options: MutationEntryOptions<TData, TVariables>) {
@@ -89,6 +90,7 @@ export class MutationEntry<TData = unknown, TVariables = unknown> {
     this._updatedAt = Date.now();
     this._destroyed = false;
     this._abortController = null;
+    this._retryCancelled = false;
     this._listeners = new Set();
   }
 
@@ -213,11 +215,13 @@ export class MutationEntry<TData = unknown, TVariables = unknown> {
 
     // Cancel any in-flight mutation
     this.cancel();
+    this._retryCancelled = false;
 
     this._variables = variables;
     this._status = 'pending';
     this._updatedAt = Date.now();
-    this._abortController = new AbortController();
+    const controller = new AbortController();
+    this._abortController = controller;
 
     this.notifyListeners();
 
@@ -228,7 +232,7 @@ export class MutationEntry<TData = unknown, TVariables = unknown> {
       }
 
       // Execute mutation with abort awareness
-      const signal = this._abortController.signal;
+      const signal = controller.signal;
       const data = await new Promise<TData>((resolve, reject) => {
         // Listen for abort
         const onAbort = () => {
@@ -263,8 +267,8 @@ export class MutationEntry<TData = unknown, TVariables = unknown> {
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
 
-      // Don't update state if cancelled
-      if (this._abortController?.signal.aborted && err.message === 'Mutation cancelled') {
+      // Check OUR controller, not the instance field
+      if (controller.signal.aborted && err.message === 'Mutation cancelled') {
         throw err;
       }
 
@@ -280,7 +284,9 @@ export class MutationEntry<TData = unknown, TVariables = unknown> {
 
       throw err;
     } finally {
-      this._abortController = null;
+      if (this._abortController === controller) {
+        this._abortController = null;
+      }
     }
   }
 
@@ -298,6 +304,7 @@ export class MutationEntry<TData = unknown, TVariables = unknown> {
     retryDelay: number = 1000,
   ): Promise<TData> {
     this._retryCount = 0;
+    this._retryCancelled = false;
     let lastError: Error | undefined;
 
     while (this._retryCount <= maxRetries) {
@@ -307,8 +314,34 @@ export class MutationEntry<TData = unknown, TVariables = unknown> {
         lastError = error instanceof Error ? error : new Error(String(error));
         this._retryCount++;
 
+        if (this._retryCancelled) {
+          throw lastError;
+        }
+
         if (this._retryCount <= maxRetries) {
-          await new Promise((resolve) => setTimeout(resolve, retryDelay));
+          await new Promise<void>((resolve, reject) => {
+            if (this._retryCancelled) {
+              reject(lastError);
+              return;
+            }
+
+            const onAbort = () => {
+              clearTimeout(timer);
+              this._abortController?.signal.removeEventListener('abort', onAbort);
+              reject(lastError);
+            };
+
+            const timer = setTimeout(() => {
+              this._abortController?.signal.removeEventListener('abort', onAbort);
+              if (this._retryCancelled) {
+                reject(lastError);
+              } else {
+                resolve();
+              }
+            }, retryDelay);
+
+            this._abortController?.signal.addEventListener('abort', onAbort, { once: true });
+          });
         }
       }
     }
@@ -320,9 +353,14 @@ export class MutationEntry<TData = unknown, TVariables = unknown> {
    * Cancel an in-flight mutation.
    */
   cancel(): void {
+    this._retryCancelled = true;
     if (this._abortController) {
       this._abortController.abort();
       this._abortController = null;
+      this._status = 'error';
+      this._error = new Error('Mutation cancelled');
+      this._updatedAt = Date.now();
+      this.notifyListeners();
     }
   }
 

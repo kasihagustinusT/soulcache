@@ -35,7 +35,10 @@ export class InfiniteQuery<TData = unknown, TPageParam = unknown> {
   private readonly _queryFn: InfiniteQueryOptions<TData, TPageParam>['queryFn'];
   private readonly _initialPageParam: TPageParam;
   private readonly _getNextPageParam: InfiniteQueryOptions<TData, TPageParam>['getNextPageParam'];
-  private readonly _getPreviousPageParam?: InfiniteQueryOptions<TData, TPageParam>['getPreviousPageParam'];
+  private readonly _getPreviousPageParam?: InfiniteQueryOptions<
+    TData,
+    TPageParam
+  >['getPreviousPageParam'];
   private readonly _maxPages: number;
   private readonly _listeners: Set<() => void>;
 
@@ -45,9 +48,18 @@ export class InfiniteQuery<TData = unknown, TPageParam = unknown> {
   private _hasPreviousPage: boolean;
   private _isFetchingNextPage: boolean;
   private _isFetchingPreviousPage: boolean;
+  private _isFetching: boolean;
   private _error: Error | null;
   private _destroyed: boolean;
-  private _abortController: AbortController | null;
+  private _activeOperationCount: number;
+  private _cancelGeneration: number;
+  private readonly _abortControllers: Set<AbortController>;
+  // Cache a state snapshot for memoization. Without this, the state getter
+  // creates new array clones on every access, breaking useSyncExternalStore's
+  // reference equality check and causing unnecessary re-renders in
+  // useInfiniteQuery.
+  private _cachedState: InfiniteQueryState<TData> | null;
+  private _stateDirty: boolean;
 
   constructor(options: InfiniteQueryOptions<TData, TPageParam>) {
     this._id = generateId();
@@ -64,10 +76,15 @@ export class InfiniteQuery<TData = unknown, TPageParam = unknown> {
     this._hasPreviousPage = !!options.getPreviousPageParam;
     this._isFetchingNextPage = false;
     this._isFetchingPreviousPage = false;
+    this._isFetching = false;
     this._error = null;
     this._destroyed = false;
-    this._abortController = null;
+    this._activeOperationCount = 0;
+    this._cancelGeneration = 0;
+    this._abortControllers = new Set();
     this._listeners = new Set();
+    this._cachedState = null;
+    this._stateDirty = true;
   }
 
   /**
@@ -88,15 +105,21 @@ export class InfiniteQuery<TData = unknown, TPageParam = unknown> {
    * Current state snapshot.
    */
   get state(): InfiniteQueryState<TData> {
-    return {
-      pages: this._pages,
-      pageParams: this._pageParams,
+    if (!this._stateDirty && this._cachedState) {
+      return this._cachedState;
+    }
+    this._cachedState = {
+      pages: [...this._pages],
+      pageParams: [...this._pageParams],
       hasNextPage: this._hasNextPage,
       hasPreviousPage: this._hasPreviousPage,
       isFetchingNextPage: this._isFetchingNextPage,
       isFetchingPreviousPage: this._isFetchingPreviousPage,
+      isFetching: this._isFetching,
       error: this._error,
     };
+    this._stateDirty = false;
+    return this._cachedState;
   }
 
   /**
@@ -132,6 +155,13 @@ export class InfiniteQuery<TData = unknown, TPageParam = unknown> {
    */
   get isFetchingPreviousPage(): boolean {
     return this._isFetchingPreviousPage;
+  }
+
+  /**
+   * Whether any fetch (initial, next, or previous) is in progress.
+   */
+  get isFetching(): boolean {
+    return this._isFetching;
   }
 
   /**
@@ -173,25 +203,36 @@ export class InfiniteQuery<TData = unknown, TPageParam = unknown> {
     this.assertNotDestroyed();
 
     this.cancel();
-    this._abortController = new AbortController();
+    const myGeneration = this._cancelGeneration;
+    this._activeOperationCount = 1;
+
+    const abortController = new AbortController();
+    this._abortControllers.add(abortController);
 
     this._pages = [];
     this._pageParams = [];
     this._error = null;
     this._isFetchingNextPage = false;
     this._isFetchingPreviousPage = false;
+    this._isFetching = true;
     this.notifyListeners();
 
     try {
       const pageParam = this._initialPageParam;
-      const signal = this._abortController.signal;
+      const signal = abortController.signal;
 
       const data = await new Promise<TData>((resolve, reject) => {
         const onAbort = () => reject(new Error('InfiniteQuery cancelled'));
         signal.addEventListener('abort', onAbort, { once: true });
         this._queryFn({ pageParam, signal }).then(
-          (v) => { signal.removeEventListener('abort', onAbort); resolve(v); },
-          (e) => { signal.removeEventListener('abort', onAbort); reject(e); },
+          (v) => {
+            signal.removeEventListener('abort', onAbort);
+            resolve(v);
+          },
+          (e) => {
+            signal.removeEventListener('abort', onAbort);
+            reject(e);
+          },
         );
       });
 
@@ -203,12 +244,20 @@ export class InfiniteQuery<TData = unknown, TPageParam = unknown> {
 
       this.notifyListeners();
     } catch (error) {
-      if (this._abortController?.signal.aborted) return;
+      if (abortController.signal.aborted) return;
 
       this._error = error instanceof Error ? error : new Error(String(error));
       this.notifyListeners();
     } finally {
-      this._abortController = null;
+      this._abortControllers.delete(abortController);
+      if (this._cancelGeneration === myGeneration) {
+        this._activeOperationCount--;
+        if (this._activeOperationCount === 0) {
+          this._isFetching = false;
+          // Notify listeners so state.isFetching is updated
+          this.notifyListeners();
+        }
+      }
     }
   }
 
@@ -227,18 +276,22 @@ export class InfiniteQuery<TData = unknown, TPageParam = unknown> {
       return false;
     }
 
+    const myGeneration = this._cancelGeneration;
     this._isFetchingNextPage = true;
     this._error = null;
+    this._activeOperationCount++;
+    this._isFetching = true;
     this.notifyListeners();
 
     const abortController = new AbortController();
-    this._abortController = abortController;
+    this._abortControllers.add(abortController);
 
     try {
       // Determine next page param
       const lastPageIndex = this._pages.length - 1;
       const lastPageData = lastPageIndex >= 0 ? this._pages[lastPageIndex]!.data : undefined;
-      const lastPageParam = lastPageIndex >= 0 ? this._pageParams[lastPageIndex] : this._initialPageParam;
+      const lastPageParam =
+        lastPageIndex >= 0 ? this._pageParams[lastPageIndex] : this._initialPageParam;
 
       const allData = this._pages.map((p) => p.data);
       const allParams = [...this._pageParams];
@@ -262,27 +315,26 @@ export class InfiniteQuery<TData = unknown, TPageParam = unknown> {
         const onAbort = () => reject(new Error('InfiniteQuery cancelled'));
         signal.addEventListener('abort', onAbort, { once: true });
         this._queryFn({ pageParam: nextPageParam as TPageParam, signal }).then(
-          (v) => { signal.removeEventListener('abort', onAbort); resolve(v); },
-          (e) => { signal.removeEventListener('abort', onAbort); reject(e); },
+          (v) => {
+            signal.removeEventListener('abort', onAbort);
+            resolve(v);
+          },
+          (e) => {
+            signal.removeEventListener('abort', onAbort);
+            reject(e);
+          },
         );
       });
 
-      // Add new page
-      this._pages.push({
-        data,
-        pageParam: nextPageParam,
-        pageIndex: this._pages.length,
-      });
-      this._pageParams.push(nextPageParam);
+      // Add new page (immutable: create new array)
+      const newPage = { data, pageParam: nextPageParam, pageIndex: this._pages.length };
+      this._pages = [...this._pages, newPage];
+      this._pageParams = [...this._pageParams, nextPageParam as unknown];
 
-      // Enforce max pages
+      // Enforce max pages (immutable: slice to remove oldest)
       if (this._pages.length > this._maxPages) {
-        this._pages.shift();
-        this._pageParams.shift();
-        // Re-index pages
-        this._pages.forEach((p, i) => {
-          (p as { pageIndex: number }).pageIndex = i;
-        });
+        this._pages = this._pages.slice(1).map((p, i) => ({ ...p, pageIndex: i }));
+        this._pageParams = this._pageParams.slice(1);
       }
 
       this.updateHasNextPage();
@@ -299,7 +351,15 @@ export class InfiniteQuery<TData = unknown, TPageParam = unknown> {
 
       return false;
     } finally {
-      this._abortController = null;
+      this._abortControllers.delete(abortController);
+      if (this._cancelGeneration === myGeneration) {
+        this._activeOperationCount--;
+        if (this._activeOperationCount === 0) {
+          this._isFetching = false;
+          // Notify listeners so state.isFetching is updated
+          this.notifyListeners();
+        }
+      }
     }
   }
 
@@ -318,17 +378,21 @@ export class InfiniteQuery<TData = unknown, TPageParam = unknown> {
       return false;
     }
 
+    const myGeneration = this._cancelGeneration;
     this._isFetchingPreviousPage = true;
     this._error = null;
+    this._activeOperationCount++;
+    this._isFetching = true;
     this.notifyListeners();
 
     const abortController = new AbortController();
-    this._abortController = abortController;
+    this._abortControllers.add(abortController);
 
     try {
       // Determine previous page param
       const firstPageData = this._pages.length > 0 ? this._pages[0]!.data : undefined;
-      const firstPageParam = this._pageParams.length > 0 ? this._pageParams[0] : this._initialPageParam;
+      const firstPageParam =
+        this._pageParams.length > 0 ? this._pageParams[0] : this._initialPageParam;
 
       const allData = this._pages.map((p) => p.data);
       const allParams = [...this._pageParams];
@@ -352,28 +416,26 @@ export class InfiniteQuery<TData = unknown, TPageParam = unknown> {
         const onAbort = () => reject(new Error('InfiniteQuery cancelled'));
         signal.addEventListener('abort', onAbort, { once: true });
         this._queryFn({ pageParam: prevPageParam as TPageParam, signal }).then(
-          (v) => { signal.removeEventListener('abort', onAbort); resolve(v); },
-          (e) => { signal.removeEventListener('abort', onAbort); reject(e); },
+          (v) => {
+            signal.removeEventListener('abort', onAbort);
+            resolve(v);
+          },
+          (e) => {
+            signal.removeEventListener('abort', onAbort);
+            reject(e);
+          },
         );
       });
 
-      // Prepend new page
-      this._pages.unshift({
-        data,
-        pageParam: prevPageParam,
-        pageIndex: 0,
-      });
-      this._pageParams.unshift(prevPageParam);
+      // Prepend new page (immutable: create new array)
+      const newPage = { data, pageParam: prevPageParam, pageIndex: 0 };
+      this._pages = [newPage, ...this._pages.map((p, i) => ({ ...p, pageIndex: i + 1 }))];
+      this._pageParams = [prevPageParam as unknown, ...this._pageParams];
 
-      // Re-index pages
-      this._pages.forEach((p, i) => {
-        (p as { pageIndex: number }).pageIndex = i;
-      });
-
-      // Enforce max pages
+      // Enforce max pages (immutable: slice to remove oldest)
       if (this._pages.length > this._maxPages) {
-        this._pages.pop();
-        this._pageParams.pop();
+        this._pages = this._pages.slice(0, -1);
+        this._pageParams = this._pageParams.slice(0, -1);
       }
 
       this.updateHasPreviousPage();
@@ -390,7 +452,15 @@ export class InfiniteQuery<TData = unknown, TPageParam = unknown> {
 
       return false;
     } finally {
-      this._abortController = null;
+      this._abortControllers.delete(abortController);
+      if (this._cancelGeneration === myGeneration) {
+        this._activeOperationCount--;
+        if (this._activeOperationCount === 0) {
+          this._isFetching = false;
+          // Notify listeners so state.isFetching is updated
+          this.notifyListeners();
+        }
+      }
     }
   }
 
@@ -398,12 +468,17 @@ export class InfiniteQuery<TData = unknown, TPageParam = unknown> {
    * Cancel any in-flight fetches.
    */
   cancel(): void {
-    if (this._abortController) {
-      this._abortController.abort();
-      this._abortController = null;
+    for (const controller of this._abortControllers) {
+      controller.abort();
     }
+    this._abortControllers.clear();
+    this._activeOperationCount = 0;
     this._isFetchingNextPage = false;
     this._isFetchingPreviousPage = false;
+    this._isFetching = false;
+    this._cancelGeneration++;
+    this._stateDirty = true;
+    this.notifyListeners();
   }
 
   /**
@@ -417,6 +492,7 @@ export class InfiniteQuery<TData = unknown, TPageParam = unknown> {
     this._pageParams = [];
     this._hasNextPage = true;
     this._hasPreviousPage = !!this._getPreviousPageParam;
+    this._isFetching = false;
     this._error = null;
     this.notifyListeners();
   }
@@ -430,6 +506,11 @@ export class InfiniteQuery<TData = unknown, TPageParam = unknown> {
     this._destroyed = true;
 
     this.cancel();
+    this._pages = [];
+    this._pageParams = [];
+    this._error = null;
+    // Mark state dirty so the state getter rebuilds from the cleared arrays
+    this._stateDirty = true;
     this._listeners.clear();
   }
 
@@ -446,12 +527,7 @@ export class InfiniteQuery<TData = unknown, TPageParam = unknown> {
     const allData = this._pages.map((p) => p.data);
     const allParams = [...this._pageParams];
 
-    const nextPageParam = this._getNextPageParam(
-      lastPageData,
-      allData,
-      lastPageParam,
-      allParams,
-    );
+    const nextPageParam = this._getNextPageParam(lastPageData, allData, lastPageParam, allParams);
 
     this._hasNextPage = nextPageParam !== undefined;
   }
@@ -490,6 +566,9 @@ export class InfiniteQuery<TData = unknown, TPageParam = unknown> {
   }
 
   private notifyListeners(): void {
+    // Mark state dirty before notifying so the next state getter call
+    // creates a fresh snapshot.
+    this._stateDirty = true;
     for (const listener of this._listeners) {
       try {
         listener();

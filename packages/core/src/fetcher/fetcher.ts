@@ -39,13 +39,20 @@ export class Fetcher {
   private readonly onEvent: ((event: FetchEvent) => void) | undefined;
 
   /** In-flight request deduplication map: dedupKey → { promise, refCount } */
-  private readonly inFlight: Map<string, {
-    promise: Promise<FetchResult>;
-    refCount: number;
-  }> = new Map();
+  private readonly inFlight: Map<
+    string,
+    {
+      promise: Promise<FetchResult>;
+      refCount: number;
+    }
+  > = new Map();
 
   /** Active AbortControllers by request ID */
   private readonly controllers: Map<string, AbortController> = new Map();
+
+  /** External abort-signal cleanup handlers by request ID */
+  private readonly _signalCleanups: Map<string, { signal: AbortSignal; handler: () => void }> =
+    new Map();
 
   constructor(options?: FetcherOptions) {
     this.defaultTimeout = options?.defaultTimeout ?? 30_000;
@@ -191,7 +198,11 @@ export class Fetcher {
       if (externalSignal.aborted) {
         controller.abort();
       } else {
-        externalSignal.addEventListener('abort', () => controller.abort(), { once: true });
+        // Store the handler so cleanup() can remove the listener on request
+        // completion (not just on signal firing)
+        const handler = () => controller.abort();
+        externalSignal.addEventListener('abort', handler, { once: true });
+        this._signalCleanups.set(request.id, { signal: externalSignal, handler });
       }
     }
 
@@ -216,12 +227,9 @@ export class Fetcher {
 
     // Apply timeout (Stage 3)
     if (request.timeout > 0) {
-      return this.withTimeout(
-        chain(request),
-        request.signal,
-        request.timeout,
-        request,
-      ) as Promise<FetchResult<T>>;
+      return this.withTimeout(chain(request), request.signal, request.timeout, request) as Promise<
+        FetchResult<T>
+      >;
     }
 
     return chain(request) as Promise<FetchResult<T>>;
@@ -236,10 +244,7 @@ export class Fetcher {
     userMiddleware: readonly FetchMiddleware[] | undefined,
     fetchFn: typeof globalThis.fetch,
   ): (request: FetchRequest) => Promise<FetchResult> {
-    const middlewares = [
-      ...(userMiddleware ?? []),
-      ...this.globalMiddleware,
-    ];
+    const middlewares = [...(userMiddleware ?? []), ...this.globalMiddleware];
 
     // The final handler is the actual fetch execution
     const finalHandler = async (request: FetchRequest): Promise<FetchResult> => {
@@ -398,23 +403,34 @@ export class Fetcher {
 
     if (existing !== undefined) {
       existing.refCount++;
-      this.emit('fetch:dedup', { id: key, queryKey: [], timeout: 0, responseType: 'json', headers: {}, method: 'GET', url: '' } as FetchRequest);
-      return existing.promise as Promise<FetchResult<T>>;
+      this.emit('fetch:dedup', {
+        id: key,
+        queryKey: [],
+        timeout: 0,
+        responseType: 'json',
+        headers: {},
+        method: 'GET',
+        url: '',
+      } as FetchRequest);
+      // Return the shared promise with its own cleanup
+      return existing.promise.finally(() => {
+        const entry = this.inFlight.get(key);
+        if (entry !== undefined && --entry.refCount <= 0) {
+          this.inFlight.delete(key);
+        }
+      }) as Promise<FetchResult<T>>;
     }
 
-    const promise = fn().finally(() => {
-      const entry = this.inFlight.get(key);
-      if (entry !== undefined && --entry.refCount <= 0) {
+    const promise = fn();
+    const entry = { promise: promise as unknown as Promise<FetchResult>, refCount: 1 };
+    this.inFlight.set(key, entry);
+
+    // Return the promise with cleanup
+    return promise.finally(() => {
+      if (--entry.refCount <= 0) {
         this.inFlight.delete(key);
       }
-    });
-
-    this.inFlight.set(key, {
-      promise: promise as unknown as Promise<FetchResult>,
-      refCount: 1,
-    });
-
-    return promise;
+    }) as Promise<FetchResult<T>>;
   }
 
   /**
@@ -435,11 +451,7 @@ export class Fetcher {
    *
    * Wraps raw errors into typed FetchError with category.
    */
-  private classifyError(
-    error: unknown,
-    request: FetchRequest,
-    duration: number,
-  ): FetchError {
+  private classifyError(error: unknown, request: FetchRequest, duration: number): FetchError {
     if (error instanceof DOMException && error.name === 'AbortError') {
       return this.createAbortError(request, duration);
     }
@@ -454,11 +466,7 @@ export class Fetcher {
     }
 
     // Pre-classified via Object.defineProperty (http errors from handleResponse)
-    if (
-      error instanceof Error &&
-      error.name === 'FetchError' &&
-      'type' in error
-    ) {
+    if (error instanceof Error && error.name === 'FetchError' && 'type' in error) {
       Object.defineProperty(error, 'duration', { value: duration, configurable: true });
       Object.defineProperty(error, 'request', { value: request, configurable: true });
       return error as FetchError;
@@ -495,7 +503,11 @@ export class Fetcher {
     return error;
   }
 
-  private createTimeoutError(timeoutMs: number, request: FetchRequest, duration: number): FetchError {
+  private createTimeoutError(
+    timeoutMs: number,
+    request: FetchRequest,
+    duration: number,
+  ): FetchError {
     const error = new Error(`Request timed out after ${timeoutMs}ms`) as FetchError;
     Object.defineProperty(error, 'type', { value: 'timeout' as const, configurable: true });
     Object.defineProperty(error, 'duration', { value: duration, configurable: true });
@@ -505,11 +517,7 @@ export class Fetcher {
   }
 
   private isFetchError(error: unknown): error is FetchError {
-    return (
-      error instanceof Error &&
-      error.name === 'FetchError' &&
-      'type' in error
-    );
+    return error instanceof Error && error.name === 'FetchError' && 'type' in error;
   }
 
   // ─── Events ────────────────────────────────────────────────────────
@@ -537,6 +545,12 @@ export class Fetcher {
   // ─── Cleanup (Stage 9) ────────────────────────────────────────────
 
   private cleanup(requestId: string): void {
+    // Remove the external abort signal listener to prevent a leak
+    const ext = this._signalCleanups.get(requestId);
+    if (ext) {
+      ext.signal.removeEventListener('abort', ext.handler);
+      this._signalCleanups.delete(requestId);
+    }
     this.controllers.delete(requestId);
   }
 }

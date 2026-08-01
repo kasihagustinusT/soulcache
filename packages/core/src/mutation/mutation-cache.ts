@@ -37,6 +37,7 @@ export class MutationCache {
   private readonly _mutations: Map<string, MutationEntry<unknown, unknown>> = new Map();
   private readonly _maxSize: number;
   private readonly _listeners: Set<() => void> = new Set();
+  private readonly _subscriptions: Map<string, () => void> = new Map();
 
   constructor(options?: MutationCacheOptions) {
     this._maxSize = options?.maxSize ?? 1000;
@@ -69,9 +70,10 @@ export class MutationCache {
     this._mutations.set(entry.id, entry as MutationEntry<unknown, unknown>);
 
     // Subscribe to entry changes to notify cache listeners
-    entry.subscribe(() => {
+    const unsubscribe = entry.subscribe(() => {
       this.notifyListeners();
     });
+    this._subscriptions.set(entry.id, unsubscribe);
 
     this.notifyListeners();
 
@@ -127,6 +129,8 @@ export class MutationCache {
     if (!entry) return false;
 
     entry.destroy();
+    this._subscriptions.get(mutationId)?.();
+    this._subscriptions.delete(mutationId);
     this._mutations.delete(mutationId);
     this.notifyListeners();
 
@@ -138,9 +142,11 @@ export class MutationCache {
    */
   clear(): void {
     for (const entry of this._mutations.values()) {
+      this._subscriptions.get(entry.id)?.();
       entry.destroy();
     }
     this._mutations.clear();
+    this._subscriptions.clear();
     this.notifyListeners();
   }
 
@@ -170,15 +176,18 @@ export class MutationCache {
   destroy(): void {
     this.clear();
     this._listeners.clear();
+    this._subscriptions.clear();
   }
 
   private evictOldest(): void {
     let oldestId: string | undefined;
     let oldestTime = Infinity;
+    let hasPendingOnly = true;
 
     for (const [id, entry] of this._mutations.entries()) {
-      // Don't evict pending mutations
-      if (entry.isPending) continue;
+      if (!entry.isPending) {
+        hasPendingOnly = false;
+      }
 
       if (entry.createdAt < oldestTime) {
         oldestTime = entry.createdAt;
@@ -187,8 +196,16 @@ export class MutationCache {
     }
 
     if (oldestId) {
+      // If all entries are pending, force-evict the oldest one to make room
+      if (hasPendingOnly) {
+        const entry = this._mutations.get(oldestId);
+        entry?.cancel();
+      }
+
       const entry = this._mutations.get(oldestId);
       entry?.destroy();
+      this._subscriptions.get(oldestId)?.();
+      this._subscriptions.delete(oldestId);
       this._mutations.delete(oldestId);
     }
   }
