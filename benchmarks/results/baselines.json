@@ -1,0 +1,41 @@
+{
+  "fingerprint": "android-arm64-unknown-node24.15.0",
+  "recordedAt": 1785554455005,
+  "benchmarks": {
+    "cache.set (1000 writes)": {
+      "opsPerSecond": 43.082048456761484,
+      "p95Ms": 25.65567699999997,
+      "recordedAt": 1785554454945
+    },
+    "cache.get (1000 reads)": {
+      "opsPerSecond": 35.45386866662177,
+      "p95Ms": 31.29083400000036,
+      "recordedAt": 1785554454946
+    },
+    "queryEngine.executeQuery (cache hit)": {
+      "opsPerSecond": 4584.024317701075,
+      "p95Ms": 0.3948439999985567,
+      "recordedAt": 1785554455004
+    },
+    "observerManager.createObserver (100 observers)": {
+      "opsPerSecond": 750.9299140591082,
+      "p95Ms": 1.5538020000003598,
+      "recordedAt": 1785554455004
+    },
+    "observerManager.notify (100 observers)": {
+      "opsPerSecond": 646.0347877070765,
+      "p95Ms": 1.8740100000004531,
+      "recordedAt": 1785554455004
+    },
+    "pluginManager.register (100 plugins)": {
+      "opsPerSecond": 3857.8999644990627,
+      "p95Ms": 0.3455730000005133,
+      "recordedAt": 1785554455005
+    },
+    "retryEngine.classifyError (1000 classifications)": {
+      "opsPerSecond": 2311.4234429744947,
+      "p95Ms": 0.8746350000001257,
+      "recordedAt": 1785554455005
+    }
+  }
+}
