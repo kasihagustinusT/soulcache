@@ -1,0 +1,25 @@
+{
+  "package": "react",
+  "exports": {
+    "QueryStatus": "value",
+    "FetchStatus": "value",
+    "MutationStatus": "value",
+    "SoulCacheProvider": "value",
+    "useQuery": "value",
+    "QueryResult": "value",
+    "UseQueryOptions": "value",
+    "useMutation": "value",
+    "MutationResult": "value",
+    "UseMutationOptions": "value",
+    "useInfiniteQuery": "value",
+    "InfiniteQueryResult": "value",
+    "UseInfiniteQueryOptions": "value",
+    "InfiniteDataPage": "value",
+    "useQueryClient": "value",
+    "usePrefetchQuery": "value",
+    "useIsFetching": "value",
+    "useIsMutating": "value",
+    "HydrationBoundary": "value"
+  },
+  "generatedAt": "2026-08-01T03:22:38.466Z"
+}
