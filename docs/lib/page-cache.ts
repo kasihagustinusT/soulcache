@@ -6,6 +6,13 @@ interface PageEntry {
   description?: string;
 }
 
+interface PageTreeNode {
+  name: string;
+  url?: string;
+  description?: string;
+  children?: PageTreeNode[];
+}
+
 let _flatPages: PageEntry[] | null = null;
 
 function getFlatPages(): PageEntry[] {
@@ -14,7 +21,7 @@ function getFlatPages(): PageEntry[] {
   const tree = source.getPageTree();
   const flat: PageEntry[] = [];
 
-  function walk(node: any) {
+  function walk(node: PageTreeNode) {
     if (node.children) {
       for (const child of node.children) {
         if (child.url && child.name && !child.url.includes('/[')) {
@@ -24,7 +31,7 @@ function getFlatPages(): PageEntry[] {
       }
     }
   }
-  walk(tree);
+  walk(tree as PageTreeNode);
 
   _flatPages = flat;
   return flat;

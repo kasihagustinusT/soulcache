@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 interface CopyButtonProps {
   text: string;
@@ -9,11 +9,16 @@ interface CopyButtonProps {
 export function CopyButton({ text }: CopyButtonProps) {
   const [copied, setCopied] = useState(false);
 
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(timer);
+  }, [copied]);
+
   const handleCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
     } catch {
       const textarea = document.createElement('textarea');
       textarea.value = text;
@@ -22,7 +27,6 @@ export function CopyButton({ text }: CopyButtonProps) {
       document.execCommand('copy');
       document.body.removeChild(textarea);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
     }
   }, [text]);
 
