@@ -42,6 +42,16 @@
       "p95Ms": 75.08468700000049,
       "recordedAt": 1785557790522
     },
+    "eventBus.emit+deliver (10k events, sync subscriber)": {
+      "opsPerSecond": 25.0466,
+      "p95Ms": 41.1829,
+      "recordedAt": 1785744671514
+    },
+    "eventBus.subscribeCoalesced (10k events)": {
+      "opsPerSecond": 24.497,
+      "p95Ms": 41.8813,
+      "recordedAt": 1785744671514
+    },
     "core.dist.bundle.gzipBytes": {
       "opsPerSecond": 0,
       "p95Ms": 27430,

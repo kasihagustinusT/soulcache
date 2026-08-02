@@ -5,6 +5,53 @@ import { QueryEngine } from '../query/query-engine';
 import { ObserverManager } from '../observer/observer-manager';
 import { PluginManager } from '../plugin/plugin-manager';
 import { RetryEngine } from '../retry/retry-engine';
+import { EventBus } from '../events/event-bus';
+
+/**
+ * Create Event System Benchmark Suite (EVT-1 / EVT-1b)
+ *
+ * EVT-1: default synchronous `subscribe`+`emit` throughput (target ≥ 100k
+ * events/s; 10k events per fn invocation). EVT-1b: opt-in coalesced delivery
+ * throughput; the bench CLI enforces the ≤ +10% p95 regression contract
+ * against the committed baseline.
+ */
+export function createEventSuite(): BenchmarkSuite {
+  return {
+    name: 'Event System',
+    benchmarks: [
+      {
+        name: 'eventBus.emit+deliver (10k events, sync subscriber)',
+        fn: () => {
+          const bus = new EventBus();
+          bus.subscribe('query.created', () => {});
+          for (let i = 0; i < 10_000; i++) {
+            bus.emit({
+              type: 'query.created',
+              source: 'query-runtime',
+              payload: { queryId: 'q', queryKey: ['k'], value: i },
+            });
+          }
+        },
+        iterations: 50,
+      },
+      {
+        name: 'eventBus.subscribeCoalesced (10k events)',
+        fn: () => {
+          const bus = new EventBus();
+          bus.subscribeCoalesced('query.created', () => {});
+          for (let i = 0; i < 10_000; i++) {
+            bus.emit({
+              type: 'query.created',
+              source: 'query-runtime',
+              payload: { queryId: 'q', queryKey: ['k'], value: i },
+            });
+          }
+        },
+        iterations: 50,
+      },
+    ],
+  };
+}
 
 /**
  * Create Cache Write/Read Benchmark Suite
@@ -160,9 +207,7 @@ export function createRetrySuite(): BenchmarkSuite {
 /**
  * Run all benchmark suites
  */
-export async function runAllBenchmarks(
-  options?: BenchmarkRunOptions,
-): Promise<BenchmarkReport[]> {
+export async function runAllBenchmarks(options?: BenchmarkRunOptions): Promise<BenchmarkReport[]> {
   const runner = new BenchmarkRunner();
   const suites = [
     createCacheSuite(),
@@ -170,6 +215,7 @@ export async function runAllBenchmarks(
     createObserverSuite(),
     createPluginSuite(),
     createRetrySuite(),
+    createEventSuite(),
   ];
 
   const reports: BenchmarkReport[] = [];

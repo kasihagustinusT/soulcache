@@ -19,15 +19,15 @@ and telemetry attach as passive subscribers).
 
 Every emitted event carries a stable, immutable envelope:
 
-| Field | Type | Description |
-|---|---|---|
-| `id` | `string` | Unique event identifier, assigned by the bus |
-| `seq` | `number` | Monotonic sequence number, assigned by the bus at emission |
-| `type` | `RuntimeEventType` | Event type (query, cache, fetch, mutation, scheduler, storage) |
-| `timestamp` | `number` | Creation time (`Date.now()`) |
-| `source` | `EventSource` | Originating subsystem |
-| `payload` | `object` | Event-specific data |
-| `metadata` | `object?` | Optional additional metadata |
+| Field       | Type               | Description                                                    |
+| ----------- | ------------------ | -------------------------------------------------------------- |
+| `id`        | `string`           | Unique event identifier, assigned by the bus                   |
+| `seq`       | `number`           | Monotonic sequence number, assigned by the bus at emission     |
+| `type`      | `RuntimeEventType` | Event type (query, cache, fetch, mutation, scheduler, storage) |
+| `timestamp` | `number`           | Creation time (`Date.now()`)                                   |
+| `source`    | `EventSource`      | Originating subsystem                                          |
+| `payload`   | `object`           | Event-specific data                                            |
+| `metadata`  | `object?`          | Optional additional metadata                                   |
 
 The `id`, `seq`, and `timestamp` fields are assigned by the bus at emission
 time; emitters omit them.
@@ -68,3 +68,47 @@ unsubscribe();
 The public `subscribeToRuntime` entry point supersedes direct `EventBus` use
 for application consumers (ships with M1.5); the raw `EventBus` class
 remains an internal runtime primitive.
+
+### Opt-in coalesced delivery (experimental)
+
+> **Status:** experimental (`subscribeCoalesced`, M1.3). Its contract is pinned
+> here so downstream consumers (devtools, persistence) rely on documented
+> semantics before it becomes stable.
+
+High-volume, loss-tolerant subscribers (devtools taps, persistence writers)
+can opt into **coalesced delivery** instead of the default synchronous path:
+
+```ts
+const unsubscribe = bus.subscribeCoalesced(
+  'query.created',
+  (event) => {
+    // receives the merged batch on the microtask after emission
+  },
+  { cap: 1000 },
+);
+```
+
+Behavior:
+
+- **Opt-in only.** The default synchronous `subscribe` path is unchanged and
+  never drops events; coalesced mode exists only when explicitly subscribed.
+- **Batching.** Events buffered during the current tick are delivered once,
+  on the microtask after the tick, in sequence-number order.
+- **Coalescing.** Within a buffered batch, same-type events collapse to the
+  latest (intermediate events are dropped). A `query:fetchStart` flood, for
+  example, collapses to its newest occurrence.
+- **Bounded queue.** Each coalescing subscriber owns a queue with a
+  documented cap (default `1000`; configurable via `{ cap }`). The queue
+  never exceeds the cap, so memory stays bounded under an event storm.
+- **Drop semantics.** When the queue is full and a new event type arrives, the
+  oldest buffered event is evicted. Events dropped by coalescing or eviction
+  are intermediates only; surviving events are delivered at-least-once.
+- **Never blocks.** Emission is never blocked by a slow coalescing subscriber;
+  buffering and draining are deferred to the microtask queue.
+- **Isolation.** A throwing handler is isolated and logged; it never breaks
+  the batch, other subscribers, or the runtime.
+- **Wildcard.** `subscribeCoalesced('*', handler)` receives every event type
+  through the same bounded, coalescing queue.
+
+Unsubscribing stops delivery immediately; a batch buffered but not yet
+drained at unsubscribe time is discarded.

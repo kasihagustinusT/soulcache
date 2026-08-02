@@ -18,5 +18,6 @@ export {
   createObserverSuite,
   createPluginSuite,
   createRetrySuite,
+  createEventSuite,
   runAllBenchmarks,
 } from './benchmarks';
