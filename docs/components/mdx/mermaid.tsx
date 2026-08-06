@@ -3,19 +3,21 @@
 import { useEffect, useRef, useState } from 'react';
 
 const MONOCHROME_VARIABLES = {
+  background: '#0d1117',
   fontFamily: "ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace",
-  primaryColor: '#1e1e1e',
-  primaryTextColor: '#e8e8e8',
-  primaryBorderColor: '#e8e8e8',
-  secondaryColor: '#1e1e1e',
-  tertiaryColor: '#1e1e1e',
-  lineColor: '#7f8c8d',
-  clusterBkg: '#111111',
-  clusterBorder: '#555555',
-  edgeLabelBackground: '#1e1e1e',
-  edgeLabelTextColor: '#e8e8e8',
-  nodeBorder: '#e8e8e8',
-  nodeTextColor: '#e8e8e8',
+  primaryColor: '#161b22',
+  primaryTextColor: '#e6edf3',
+  primaryBorderColor: '#8b949e',
+  secondaryColor: '#161b22',
+  tertiaryColor: '#161b22',
+  lineColor: '#8b949e',
+  clusterBkg: '#010409',
+  clusterBorder: '#30363d',
+  titleColor: '#e6edf3',
+  edgeLabelBackground: '#161b22',
+  edgeLabelTextColor: '#e6edf3',
+  nodeBorder: '#8b949e',
+  nodeTextColor: '#e6edf3',
 };
 
 export function Mermaid({ chart }: { chart: string }) {

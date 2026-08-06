@@ -135,20 +135,44 @@ Internal typed event system for module communication:
 ### Query Execution Flow
 
 <Mermaid
-  chart={`graph LR
-    A["User Code"] --> B["QueryClient"]
-    B --> C["Dedup Check"]
-    C -->|"cache hit"| D["CacheEngine"]
-    C -->|"cache miss"| E["Fetch + Retry"]
-    E --> F["QueryStateMachine"]
-    F --> G["CacheEngine"]
-    G --> H["QueryObserver"]
-    H --> I["Subscribers"]
+  chart={`flowchart TB
+    UC["User Code"] --> QC["QueryClient.fetchQuery"]
+    QC --> HASH["hashQueryKey(queryKey)"]
+    HASH --> DEDUP{"In-flight request?<br/>(_pendingFetches)"}
+    DEDUP -- "yes · share promise" --> SHARE["Return existing promise<br/>(Promise.race + abort)"]
+    DEDUP -- "no" --> EXEC["_executeFetch"]
 
-    classDef highlight fill:#374151,stroke:#6b7280,color:#f9fafb
-    classDef default fill:#1f2937,stroke:#4b5563,color:#e5e7eb
-    class B,C,E,F,G,H highlight
-    class A,D,I default`}
+    EXEC --> SM["QueryStateMachine<br/>idle → pending → fetching"]
+    EXEC --> ENTRY["CacheEngine<br/>state: pending · fetchStatus: fetching"]
+    EXEC --> EB["EventBus<br/>emit fetch.started"]
+    EXEC --> OBS["QueryObserver<br/>setFetchStatus(fetching)"]
+
+    ENTRY --> QFN["await queryFn()"]
+    SM --> QFN
+    OBS --> QFN
+
+    QFN -- "resolve" --> W_OK["CacheEngine.set<br/>data · state: success · status: fresh"]
+    W_OK --> SM_OK["QueryStateMachine<br/>transition → success"]
+    W_OK --> EB_OK["EventBus<br/>emit fetch.completed · query.success"]
+    W_OK --> OBS_OK["QueryObserver<br/>setData(data)"]
+    OBS_OK --> RENDER["Subscribers · React re-render"]
+    RENDER --> RETURN["resolve(data)"]
+
+    QFN -- "reject" --> W_ERR["CacheEngine.set<br/>error · state: error · status: stale"]
+    W_ERR --> SM_ERR["QueryStateMachine<br/>transition → error"]
+    W_ERR --> EB_ERR["EventBus<br/>emit fetch.failed · query.error"]
+    W_ERR --> OBS_ERR["QueryObserver<br/>setError(error)"]
+    OBS_ERR --> ERR_STATE["Subscribers · React error state"]
+    ERR_STATE --> THROW["rethrow error"]
+
+    classDef highlight fill:#3a3a3a,stroke:#e6edf3,color:#ffffff,stroke-width:2px
+    classDef default fill:#2c2c2c,stroke:#8b949e,color:#f0f6fc,stroke-width:1px
+    classDef path fill:#161b22,stroke:#6e7681,color:#e6edf3,stroke-width:1px
+
+    class UC,QC,HASH,DEDUP,EXEC highlight
+    class SM,ENTRY,EB,OBS,QFN path
+    class W_OK,SM_OK,EB_OK,OBS_OK,RENDER,RETURN default
+    class W_ERR,SM_ERR,EB_ERR,OBS_ERR,ERR_STATE,THROW default`}
 />
 
 ### Module Map
