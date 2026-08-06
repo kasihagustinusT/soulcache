@@ -57,10 +57,28 @@ const result = await client.mutate({
 });
 ```
 
+<Note type="info" title="Callback errors">
+Mutation callbacks are isolated from the mutation outcome:
+
+- An `onSuccess`/`onSettled` that **throws** cannot turn a success into an
+  error — the mutation resolves with its data and the state stays `success`.
+- An `onError` that **throws** cannot replace the original mutation error and
+  cannot prevent `onSettled` from running.
+- An `onMutate` that **throws** is treated as a mutation error (`onError` and
+  `onSettled` still run).
+- `onSettled` runs on every success/error, even when other callbacks throw.
+  (Cancelled mutations are the exception and do not fire `onSettled`.)
+- Callbacks are expected to be **synchronous** (they are typed to return
+  `void`). An `async` callback that rejects rather than throwing synchronously
+  is not isolated and its rejection is not handled.
+</Note>
+
 #### With Retry
 
-<Note type="warning" title="Experimental">
-The `retry` and `retryDelay` parameters are accepted by `QueryClient.mutate()` but are not currently passed through to `MutationEntry`. Use `MutationEntry.mutateWithRetry()` directly for retry behavior.
+<Note type="warning" title="Retry">
+The `retry` and `retryDelay` parameters are accepted by `QueryClient.mutate()`
+but are not applied — `mutate()` performs a single attempt. Use
+`MutationEntry.mutateWithRetry()` directly for retry behavior.
 </Note>
 
 ```typescript

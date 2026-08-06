@@ -79,6 +79,28 @@ describe('Query Utilities', () => {
       expect(deepEqual(undefined, undefined)).toBe(true);
       expect(deepEqual(null, undefined)).toBe(false);
     });
+
+    it('should throw RangeError on pathological depth', () => {
+      const build = (): unknown => {
+        let cursor: unknown[] = [];
+        for (let i = 0; i < 500; i++) {
+          cursor = [cursor];
+        }
+        return cursor;
+      };
+      expect(() => deepEqual(build(), build())).toThrow(RangeError);
+    });
+
+    it('should not throw within the depth bound', () => {
+      const build = (): unknown => {
+        let cursor: unknown[] = [];
+        for (let i = 0; i < 50; i++) {
+          cursor = [cursor];
+        }
+        return cursor;
+      };
+      expect(() => deepEqual(build(), build())).not.toThrow();
+    });
   });
 
   describe('generateId', () => {

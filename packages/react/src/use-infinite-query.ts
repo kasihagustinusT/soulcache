@@ -62,7 +62,7 @@ export interface UseInfiniteQueryOptions<TData, TPageParam = number> {
   readonly getPreviousPageParam?: (firstPage: TData, allPages: TData[], firstPageParam: TPageParam, allPageParams: TPageParam[]) => TPageParam | undefined;
   /** Initial page parameter */
   readonly initialPageParam?: TPageParam;
-  /** Maximum number of pages to keep in memory */
+  /** Maximum number of pages to keep in memory (default: 50; set Infinity to keep all) */
   readonly maxPages?: number;
   /** Whether the query is enabled (default: true) */
   readonly enabled?: boolean;

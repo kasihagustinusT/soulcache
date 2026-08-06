@@ -15,6 +15,7 @@
     "infinite-query",
     "hydration",
     "storage",
+    "devtools",
     "plugins",
     "---Guides---",
     "react-adapter",

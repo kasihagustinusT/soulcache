@@ -73,11 +73,7 @@ for (const pkg of PACKAGES) {
     mkdirSync(BASELINE_DIR, { recursive: true });
     writeFileSync(
       join(BASELINE_DIR, `${pkg}.json`),
-      JSON.stringify(
-        { package: pkg, exports: current, generatedAt: new Date().toISOString() },
-        null,
-        2,
-      ),
+      JSON.stringify({ package: pkg, exports: current }, null, 2) + '\n',
     );
     console.log(`✓ @soulcache/${pkg}: baseline updated (${currentNames.length} exports)`);
     continue;

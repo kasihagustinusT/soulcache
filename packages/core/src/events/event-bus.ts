@@ -44,11 +44,17 @@ export class EventBus {
   private readonly coalescedWildcard = new Set<CoalescedSubscriber>();
   private readonly eventLog: RuntimeEvent[] = [];
   private readonly maxLogSize: number;
+  private readonly maxHandlersPerType: number;
   private readonly onError: ((error: unknown) => void) | undefined;
   private nextSeq = 0;
 
-  constructor(options?: { maxLogSize?: number; onError?: (error: unknown) => void }) {
+  constructor(options?: {
+    maxLogSize?: number;
+    onError?: (error: unknown) => void;
+    maxHandlersPerType?: number;
+  }) {
     this.maxLogSize = options?.maxLogSize ?? 1000;
+    this.maxHandlersPerType = options?.maxHandlersPerType ?? 10000;
     this.onError = options?.onError;
   }
 
@@ -73,12 +79,18 @@ export class EventBus {
    * @param eventType - The event type to subscribe to
    * @param handler - The handler function
    * @returns Unsubscribe function
+   * @throws {RangeError} If the per-type handler cap is exceeded
    */
   subscribe<T extends EventPayload>(
     eventType: RuntimeEventType,
     handler: EventHandler<T>,
   ): EventUnsubscriber {
     const typeSet = this.getOrCreateListeners(eventType);
+    if (typeSet.size >= this.maxHandlersPerType) {
+      throw new RangeError(
+        `EventBus exceeded max handlers (${this.maxHandlersPerType}) for event type "${eventType}"`,
+      );
+    }
     const typedHandler = handler as EventHandler;
     typeSet.add(typedHandler);
 

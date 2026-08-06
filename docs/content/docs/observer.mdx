@@ -53,9 +53,12 @@ const unsub2 = client.subscribe(['users'], handlePosts);
 // Both get notified with a single update
 ```
 
-#### Batching
+#### Synchronous Delivery
 
-Updates are batched automatically. Multiple synchronous cache updates result in a single notification per subscriber.
+Updates are delivered synchronously. There is no notification batching in the current
+release: each state change results in an immediate notification to subscribers of that
+key. Subscribers for the same key are each notified as the underlying state transitions
+occur.
 
 #### Equality Checking
 

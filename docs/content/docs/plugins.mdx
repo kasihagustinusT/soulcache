@@ -9,29 +9,15 @@ The Plugin System allows you to extend SoulCache with custom behavior.
 
 ### Usage
 
-SoulCache provides a plugin infrastructure for custom extensions. Plugins are registered through the plugin manager at initialization time.
+SoulCache provides a plugin infrastructure for internal extension. The plugin system is
+an internal module of `@soulcache/core`: `PluginManager`, `Plugin`, and `PluginContext`
+are not exported from the package root, there is no `plugins` option on
+`QueryClientConfig`, and the `@soulcache/core/plugin` subpath does not resolve. There is
+no public plugin registration API in the current release.
 
 ```typescript
-// Plugin types are internal to @soulcache/core
-// Import from the plugin subpath when it becomes public
-import type { Plugin, PluginContext } from '@soulcache/core/plugin';
-
-const myPlugin: Plugin = {
-  metadata: {
-    id: 'logging',
-    name: 'Logging Plugin',
-    version: '1.0.0',
-  },
-  onAfterInit: (ctx: PluginContext) => {
-    ctx.log('info', 'Plugin initialized');
-  },
-  onBeforeQuery: (queryKey: unknown[], ctx: PluginContext) => {
-    ctx.log('info', `Query starting: ${queryKey.join('/')}`);
-  },
-  onAfterQuery: (queryKey: unknown[], ctx: PluginContext) => {
-    ctx.log('info', `Query completed: ${queryKey.join('/')}`);
-  },
-};
+// The plugin system is internal to @soulcache/core.
+// It is not exported and cannot be imported by consumers.
 ```
 
 ### Lifecycle

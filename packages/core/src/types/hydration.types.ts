@@ -67,8 +67,8 @@ export interface HydrationOptions {
   /**
    * Override behavior for existing queries.
    * - 'skip': Don't hydrate if query already exists
-   * - 'overwrite': Replace existing query data
-   * - 'merge': Merge with existing data (requires custom merge function)
+   * - 'overwrite': Replace existing query data (default)
+   * - 'merge': Preserve existing data; only hydrate entries without data
    */
   readonly mergeStrategy?: 'skip' | 'overwrite' | 'merge';
 }

@@ -99,7 +99,11 @@ export interface InfiniteQueryOptions<TData = unknown, TPageParam = unknown> {
   /** Cache garbage collection duration in milliseconds */
   readonly gcTime?: number;
 
-  /** Maximum number of pages to keep in cache */
+  /**
+   * Maximum number of pages to keep in cache.
+   * Defaults to `50`; set `Infinity` to retain every page. Oldest pages are
+   * evicted beyond the cap.
+   */
   readonly maxPages?: number;
 }
 

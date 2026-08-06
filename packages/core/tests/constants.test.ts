@@ -57,7 +57,7 @@ describe('Constants', () => {
 
   describe('Version', () => {
     it('should have valid version string', () => {
-      expect(RUNTIME_VERSION).toBe('0.1.0');
+      expect(RUNTIME_VERSION).toBe('1.1.0');
     });
   });
 });

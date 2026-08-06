@@ -67,14 +67,18 @@ console.log('Active entries:', stats.activeEntries);
 
 **Solutions:**
 
-1. Check retry configuration:
+1. Note that `QueryClient` does not apply a global `retry` option in the current release. For retrying mutations, use `MutationEntry.mutateWithRetry()`:
 ```typescript
-// Configure retry globally on the client
-const client = new QueryClient({
-  defaultOptions: {
-    retry: 3,
+const entry = client.getMutationCache().create({
+  mutationId: 'mut-1',
+  mutationFn: async (vars) => {
+    const res = await fetch('/api/data', { method: 'POST', body: JSON.stringify(vars) });
+    return res.json();
   },
 });
+
+// Retries up to 3 times with 1000ms delay
+await entry.mutateWithRetry({ name: 'John' }, 3, 1000);
 ```
 
 2. Implement error handling:
@@ -130,26 +134,13 @@ import { useQuery } from '@soulcache/react';
 
 **Solutions:**
 
-1. Increase stale time:
+1. Reduce unnecessary fetches by invalidating the cache only when data changes:
 ```typescript
-const client = new QueryClient({
-  defaultOptions: {
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  },
-});
+await client.invalidateQueries(['users']); // marks entries stale
+await client.fetchQuery({ queryKey: ['users'], queryFn }); // explicit refetch
 ```
 
-2. Use background refetching:
-```typescript
-// staleTime is configured on the QueryClient, not per-query
-const client = new QueryClient({
-  defaultOptions: {
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-  },
-});
-```
-
-3. Monitor metrics:
+2. Monitor metrics:
 ```typescript
 const metrics = client.getScheduler().getMetrics();
 console.log('Tasks completed:', metrics.totalCompleted);

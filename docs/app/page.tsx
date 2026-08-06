@@ -36,7 +36,6 @@ const { data } = await client.fetchQuery({
     const res = await fetch('/api/users');
     return res.json();
   },
-  staleTime: 5 * 60 * 1000, // 5 minutes
 });
 
 // Subscribe to real-time updates
@@ -45,12 +44,12 @@ const unsub = client.subscribe(['users'], (snapshot) => {
 });
 
 // Invalidate and refetch
-await client.invalidateQueries({ queryKey: ['users'] });`;
+await client.invalidateQueries(['users']);`;
 
 const features = [
   {
     title: 'Smart Cache',
-    description: 'Stale-while-revalidate with configurable TTL and automatic LRU eviction.',
+    description: 'TTL caching with automatic garbage collection and LRU eviction.',
     icon: (
       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
@@ -67,17 +66,8 @@ const features = [
     ),
   },
   {
-    title: 'Background Refetch',
-    description: 'Refetch on window focus, network reconnect, and custom intervals.',
-    icon: (
-      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
-      </svg>
-    ),
-  },
-  {
-    title: 'Retry Logic',
-    description: 'Exponential, linear, or constant backoff with error classification.',
+    title: 'Mutations',
+    description: 'Optimistic updates with rollback and cache invalidation.',
     icon: (
       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
@@ -103,6 +93,24 @@ const features = [
     ),
   },
   {
+    title: 'Cache Invalidation',
+    description: 'Invalidate and refetch queries with dependency tracking.',
+    icon: (
+      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Persistence',
+    description: 'Pluggable storage adapters with automatic persistence.',
+    icon: (
+      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+      </svg>
+    ),
+  },
+  {
     title: 'DevTools',
     description: 'Real-time inspection panel with query timeline and cache state.',
     icon: (
@@ -121,15 +129,6 @@ const features = [
     ),
   },
   {
-    title: 'Plugin System',
-    description: 'Extend with lifecycle hooks for queries, mutations, and cache.',
-    icon: (
-      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.914-4.5a4.5 4.5 0 00-6.364 0l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
-      </svg>
-    ),
-  },
-  {
     title: 'Framework Agnostic',
     description: 'React, Vue, Svelte, Solid, or plain JavaScript. No lock-in.',
     icon: (
@@ -144,13 +143,13 @@ const stats = [
   { value: 'O(1)', label: 'Cache Hit' },
   { value: '0', label: 'Dependencies' },
   { value: '100%', label: 'TypeScript' },
-  { value: '<5KB', label: 'Bundle Size' },
+  { value: '~16KB', label: 'Core gzip bundle' },
 ];
 
 const packages = [
   { name: '@soulcache/core', desc: 'Core runtime with QueryClient, CacheEngine, and Scheduler', href: '/docs/query-client' },
   { name: '@soulcache/react', desc: 'React hooks: useQuery, useMutation, useInfiniteQuery', href: '/docs/react-adapter' },
-  { name: '@soulcache/devtools', desc: 'Visual debugging panel with real-time inspection', href: '/docs/plugins' },
+  { name: '@soulcache/devtools', desc: 'Visual debugging panel with real-time inspection', href: '/docs/devtools' },
 ];
 
 const steps = [
@@ -233,7 +232,7 @@ export default function Home() {
             <div className="mt-3 animate-fade-in animate-delay-1">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-mono text-muted-foreground">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-foreground animate-pulse" />
-                v1.0.0
+                v1.1.0
               </span>
             </div>
 
@@ -329,7 +328,7 @@ export default function Home() {
                 Simple API, powerful features
               </h2>
               <p className="mt-4 text-base sm:text-lg text-muted-foreground leading-relaxed">
-                Start fetching data in seconds. SoulCache handles caching, deduplication, and background updates automatically.
+                Start fetching data in seconds. SoulCache handles caching, deduplication, and cache invalidation automatically.
               </p>
 
               <div className="mt-8 sm:mt-10 space-y-5">

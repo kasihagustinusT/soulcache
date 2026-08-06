@@ -5,6 +5,27 @@ description: Changelog and release notes
 
 ## Release Notes
 
+### v1.1.0
+
+#### Features
+
+- **`MemoryAdapter.maxEntries`** — optional size cap; oldest entry evicted on `set`
+- **`EventBus` handler cap** — `maxHandlersPerType` option guards against unbounded listeners
+- **Query serialization hardening** — `deepEqual` recursion depth guard and `deserialize` input validation
+- API-compatible with v1.0.0 (verified against the public-API baseline)
+
+#### Documentation
+
+- TTL caching terminology replaces the incorrect "Stale While Revalidate" claims
+- Query Engine, Retry Engine, and the plugin system are now correctly documented as internal/roadmap components
+
+#### Testing
+
+- 1312/1312 tests passing (root suite, core + devtools + devtools-core)
+- 199/199 tests passing (React bindings, jsdom)
+- Full type coverage
+- Zero runtime dependencies
+
 ### v1.0.0
 
 #### Features
@@ -19,22 +40,6 @@ description: Changelog and release notes
     description="Automatic garbage collection with O(1) operations"
   />
   <FeatureCard
-    title="Retry Engine"
-    description="Exponential backoff with error classification"
-  />
-  <FeatureCard
-    title="Observer Manager"
-    description="Reactive updates with batch notifications"
-  />
-  <FeatureCard
-    title="Query Engine"
-    description="Orchestrating data fetching with deduplication"
-  />
-  <FeatureCard
-    title="Plugin System"
-    description="Extensible hooks for custom behavior"
-  />
-  <FeatureCard
     title="React Adapter"
     description="Hooks and components for React applications"
   />
@@ -44,18 +49,25 @@ description: Changelog and release notes
   />
 </FeatureGrid>
 
+The following modules ship in v1.0.0 but are **internal** (not part of the public API) and are staged for future release or roadmap work:
+
+- Retry Engine (exponential backoff with error classification)
+- Observer Manager (reactive updates with batch notifications)
+- Query Engine (orchestrating data fetching with deduplication)
+- Plugin System (extensible hooks for custom behavior)
+
 #### Performance
 
 <Note type="success" title="Performance Highlights">
 - O(1) cache operations
 - Automatic request deduplication
-- Background refetching
+- TTL-based caching
 - Memory-safe observer management
 </Note>
 
 #### Testing
 
-- 1104/1104 tests passing (root suite, core + devtools + devtools-core)
+- 1110/1110 tests passing at release time (root suite, core + devtools + devtools-core)
 - 195/195 tests passing (React bindings)
 - Full type coverage
 - Zero runtime dependencies

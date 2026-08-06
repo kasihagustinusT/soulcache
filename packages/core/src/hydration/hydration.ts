@@ -129,6 +129,11 @@ export function hydrate(
       continue;
     }
 
+    // 'merge': preserve existing data; only hydrate entries without data
+    if (existing && mergeStrategy === 'merge' && existing.data !== undefined) {
+      continue;
+    }
+
     // Hydrate the query
     const hydratedData = query.data;
     const error = query.error
@@ -168,25 +173,53 @@ export function serialize(state: DehydratedState): string {
  * Parses a JSON string back into a DehydratedState.
  * Reconstructs Error objects from serialized form.
  *
+ * Validates the parsed structure so that malformed or hostile input cannot
+ * crash hydration or corrupt the cache.
+ *
  * @param json - The JSON string to parse
  * @returns The dehydrated state
+ * @throws {SyntaxError} If the input is not valid JSON
+ * @throws {TypeError} If the parsed shape is not a valid DehydratedState
  */
 export function deserialize(json: string): DehydratedState {
-  const parsed = JSON.parse(json) as DehydratedState;
+  const parsed = JSON.parse(json) as unknown;
 
-  // Reconstruct errors
-  if (parsed.queries) {
-    for (const query of parsed.queries) {
-      if (query.error && query.error.message) {
-        const error = new Error(query.error.message);
-        error.name = query.error.name;
-        if (query.error.stack) {
-          error.stack = query.error.stack;
-        }
-        (query as { error: Error }).error = error;
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new TypeError('Invalid dehydrated state: expected an object');
+  }
+
+  const state = parsed as Record<string, unknown>;
+
+  if (state.queries !== undefined) {
+    if (!Array.isArray(state.queries)) {
+      throw new TypeError('Invalid dehydrated state: "queries" must be an array');
+    }
+    for (let i = 0; i < state.queries.length; i++) {
+      const query = state.queries[i] as Record<string, unknown> | undefined;
+      if (query === null || typeof query !== 'object' || Array.isArray(query)) {
+        throw new TypeError(`Invalid dehydrated state: query at index ${i} must be an object`);
+      }
+      if (!Array.isArray(query.queryKey)) {
+        throw new TypeError(`Invalid dehydrated state: query at index ${i} must have an array "queryKey"`);
       }
     }
   }
 
-  return parsed;
+  // Reconstruct errors
+  if (Array.isArray(state.queries)) {
+    for (const query of state.queries as Array<Record<string, unknown>>) {
+      const error = query.error;
+      const message = (error as { message?: unknown } | undefined)?.message;
+      if (error && typeof error === 'object' && typeof message === 'string' && message.length > 0) {
+        const err = new Error(message);
+        err.name = (error as { name?: unknown }).name as string;
+        if (typeof (error as { stack?: unknown }).stack === 'string') {
+          err.stack = (error as { stack: string }).stack;
+        }
+        query.error = err;
+      }
+    }
+  }
+
+  return state as unknown as DehydratedState;
 }

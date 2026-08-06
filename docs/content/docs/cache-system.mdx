@@ -61,7 +61,7 @@ Entries have a status indicating freshness:
 | `pending` | Currently fetching |
 | `success` | Data available |
 | `error` | Fetch failed |
-| `fetching` | Background refetch |
+| `fetching` | Fetch in progress (data available from cache) |
 | `stale` | Data is stale |
 | `invalidated` | Marked for refresh |
 | `destroyed` | Entry removed |
@@ -96,7 +96,6 @@ cache.clear();
 
 ```typescript
 const cache = new CacheEngine({
-  staleTime: 5 * 60 * 1000, // 5 minutes
   gcTime: 30 * 60 * 1000, // 30 minutes
   maxSize: 50000,
 });

@@ -48,9 +48,9 @@ Queries go through several states:
 | `loading` | Currently fetching for the first time |
 | `success` | Data available |
 | `error` | Fetch failed |
-| `fetching` | Background refetch in progress (stale data available) |
+| `fetching` | Fetch in progress (data available from cache) |
 
-The `fetchStatus` property tracks background refetching separately from the main `status`.
+The `fetchStatus` property tracks fetch activity separately from the main `status`.
 
 ### Usage
 

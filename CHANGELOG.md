@@ -5,22 +5,37 @@ All notable changes to SoulCache will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-08-06
+
+### Changed
+- LRU eviction score formula corrected so recently/frequently accessed entries are evicted last.
+- Mutation `onSuccess`/`onError`/`onSettled` callbacks are now isolated per callback; a throwing callback no longer corrupts mutation state or skips `onSettled`.
+- Retry-engine event listeners are individually isolated; `toError()` preserves `name`/`message` for non-`Error` thrown values (e.g. DOMException in jsdom).
+- `InfiniteQuery` default `maxPages` changed from `Infinity` to `50`; navigation flags are recomputed after page-window eviction.
+- `EventBus` adds monotonic sequence numbers and opt-in coalesced delivery.
+
+### Security
+- `MemoryAdapter` now accepts a `maxEntries` option to cap stored entries and bound memory use.
+- `deepEqual` now guards recursion depth to prevent stack-overflow attacks on pathological input.
+- `deserialize` now validates the dehydrated-state shape before hydrating, rejecting malformed or hostile payloads.
+- `EventBus` now enforces a per-type handler limit to prevent unbounded listener growth.
+
 ## [1.0.0] - 2026-07-23
 
 ### Added
 
 #### Core Runtime
-- Query engine with stale-while-revalidate, background refetching, and request deduplication
+- Query client with request deduplication
 - Cache engine with configurable TTL, garbage collection, and dependency tracking
-- Retry engine with exponential, linear, and constant backoff strategies
-- Mutation system with optimistic updates, rollback, and automatic cache invalidation
+- Mutation system with optimistic updates and rollback
 - Observer system with structured snapshots and real-time subscriptions
 - Scheduler with priority-based task scheduling (immediate, high, normal, low, idle)
 - Infinite query support with cursor-based and page-based pagination
-- Plugin system with lifecycle hooks for query, mutation, cache, and error events
+- Retry engine (internal module) with exponential, linear, and constant backoff strategies
+- Plugin system (internal module) with lifecycle hooks for query, mutation, cache, and error events
 
 #### Storage
-- Pluggable storage adapters (Memory, IndexedDB, LocalStorage)
+- Pluggable storage adapters (Memory)
 - Automatic persistence with configurable serialization
 - Migration manager for schema versioning
 - Restore manager for cache recovery
@@ -80,7 +95,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ESM-only with tree-shaking support
 - Zero runtime dependencies in core package
 - Changesets for version management
-- Comprehensive test suite (756 tests)
+- Comprehensive test suite (1,293+ tests)
 - CI/CD with GitHub Actions (Node.js 20, 22)
 - CodeQL security analysis
 - Dependabot for dependency updates
@@ -99,4 +114,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - FUNDING.yml for GitHub Sponsors
 - Labels for issue and PR management
 
+[1.1.0]: https://github.com/kasihagustinusT/soulcache/releases/tag/v1.1.0
 [1.0.0]: https://github.com/kasihagustinusT/soulcache/releases/tag/v1.0.0

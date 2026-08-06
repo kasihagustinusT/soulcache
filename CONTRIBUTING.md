@@ -39,10 +39,13 @@ pnpm format:check   # Check formatting
 ```
 soulcache/
 ├── packages/
-│   ├── core/          # Core runtime (@soulcache/core)
-│   └── react/         # React adapter (@soulcache/react)
-├── docs/              # Documentation site
-└── scripts/           # Build & validation scripts
+│   ├── core/             # Core runtime (@soulcache/core)
+│   ├── react/            # React adapter (@soulcache/react)
+│   ├── devtools-core/    # DevTools shared runtime (@soulcache/devtools-core)
+│   └── devtools/         # React DevTools (@soulcache/devtools)
+├── docs/                 # Documentation site
+├── scripts/              # Build & validation scripts
+└── .changeset/           # Changeset release notes
 ```
 
 ### Adding Changes

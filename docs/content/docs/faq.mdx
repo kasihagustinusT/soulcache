@@ -9,7 +9,7 @@ description: Frequently asked questions about SoulCache
 
 #### What is SoulCache?
 
-SoulCache is a universal data fetching and caching runtime for modern applications. It provides automatic caching, background refetching, and optimistic updates.
+SoulCache is a universal data fetching and caching runtime for modern applications. It provides automatic caching, request deduplication, cache invalidation, mutations, and optimistic updates. Background refetching and retry are internal modules targeted for future milestones.
 
 #### Is SoulCache production-ready?
 
@@ -23,7 +23,7 @@ No. SoulCache has zero runtime dependencies. All functionality is built from scr
 
 #### What Node.js version is required?
 
-SoulCache requires Node.js 16 or higher.
+SoulCache requires Node.js 20 or higher.
 
 #### Does SoulCache work with React?
 
@@ -58,11 +58,11 @@ client.setQueryData(['users'], (old) => [...old, newUser]);
 
 #### How fast is SoulCache?
 
-SoulCache operations are O(1) for cache hits and O(1) for cache writes. Background refetching is automatic and non-blocking.
+SoulCache operations are O(1) for cache hits and O(1) for cache writes.
 
 #### Does SoulCache support offline?
 
-SoulCache supports persistence with storage adapters. For full offline support, use IndexedDB or AsyncStorage.
+SoulCache supports persistence with the bundled MemoryAdapter and pluggable storage adapters. For full offline support, integrate a browser adapter such as IndexedDB or AsyncStorage.
 
 ### Troubleshooting
 

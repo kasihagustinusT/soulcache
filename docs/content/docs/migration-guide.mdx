@@ -41,12 +41,10 @@ const { data } = useQuery({
 });
 
 // After (SoulCache) — configure via QueryClient
-const client = new QueryClient({
-  defaultOptions: {
-    staleTime: 5 * 60 * 1000,
-    retry: 3,
-  },
-});
+// Note: SoulCache does not apply a global `retry` option in the current
+// release. Query-level retry is handled internally; for mutations use
+// `MutationEntry.mutateWithRetry()`.
+const client = new QueryClient();
 
 const { data } = useQuery({
   queryKey: ['users'],
@@ -84,9 +82,9 @@ const { data } = useQuery({
 | Feature | React Query | SWR | SoulCache |
 |---------|-------------|-----|-----------|
 | Runtime deps | 0 | 0 | 0 |
-| Bundle size | ~12KB | ~4KB | ~8KB |
+| Bundle size (min+gzip) | ~12KB | ~4KB | ~16KB |
 | TypeScript | Good | Good | Excellent |
-| Plugin system | Yes | No | Yes |
+| Plugin system | Yes | No | Internal (roadmap) |
 | DevTools | Yes | No | Yes |
 
 ### Migration Checklist

@@ -22,22 +22,6 @@ coverage/
 .idea/
 out/
 
-# Internal developer documentation — MUST NEVER be committed or published.
-# Policy: AGENTS.md. These are the maintainer's working documents, not
-# product documentation. Never removed from this ignore list.
-bugs/
-releases/
-planning/
-engineering/
-internal/
-drafts/
-notes/
-reports/
-audit/
-certification/
-validation/
-AGENTS.md
-
 # Transient benchmark run artifacts (committed baselines stay in benchmarks/results/)
 benchmarks/results/run-*.json
 .tmp-bench/

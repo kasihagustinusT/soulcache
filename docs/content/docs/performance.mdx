@@ -31,24 +31,15 @@ import { useQuery } from '@soulcache/react';
 
 ### Caching Strategies
 
-#### Stale While Revalidate
+#### TTL Caching
+
+Configure the cache eviction lifetime. Background refetching and retry are
+internal modules targeted for future milestones.
 
 ```typescript
 const client = new QueryClient({
   defaultOptions: {
-    staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 30 * 60 * 1000, // 30 minutes
-  },
-});
-```
-
-#### Background Refetching
-
-```typescript
-// staleTime is configured on the QueryClient
-const client = new QueryClient({
-  defaultOptions: {
-    staleTime: 5 * 60 * 1000, // 5 minutes
   },
 });
 ```

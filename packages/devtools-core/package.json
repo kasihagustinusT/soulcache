@@ -1,6 +1,6 @@
 {
   "name": "@soulcache/devtools-core",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Framework-agnostic inspection and diagnostics layer for SoulCache DevTools",
   "type": "module",
   "main": "./dist/index.js",
@@ -52,11 +52,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "clean": "rm -rf dist node_modules"
   },
   "devDependencies": {
     "@soulcache/core": "workspace:*",
-    "typescript": "^5.4.0",
+    "typescript": "^5.8.0",
     "vitest": "^3.0.0"
   },
   "peerDependencies": {

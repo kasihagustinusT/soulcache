@@ -27,6 +27,14 @@ new CacheEngine(options?: CacheEngineOptions)
 | `gcTime` | `number` | `1800000` (30 min) | Garbage collection time |
 | `maxSize` | `number` | `100000` | Maximum cache entries |
 
+When the cache reaches `maxSize`, the least-valuable entry is evicted before a
+new one is inserted. Entries are ranked by a weighted score that favours entries
+accessed recently and frequently (each access is worth roughly one second of
+recency) plus a bonus for active observers; the lowest-scoring entry is evicted
+first. Entries with observers or in-flight fetches are never evicted; if every
+entry is protected, temporary overflow is permitted until entries become
+available.
+
 ### Methods
 
 #### `get<T>(queryKey)`

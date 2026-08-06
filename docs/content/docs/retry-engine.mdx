@@ -6,39 +6,27 @@ description: Internal architecture - Retry logic and error classification
 ## RetryEngine (Internal)
 
 <Note type="info" title="Internal Implementation">
-`RetryEngine` is an internal module used by `MutationEntry.mutateWithRetry()`. It is not currently integrated into the query fetch pipeline (`QueryClient.fetchQuery()` does not support retry configuration).
+`RetryEngine` is an internal module of `@soulcache/core`. It is not exported from the
+package root and is not part of the public API. It is used by `QueryEngine.executeQuery()`
+for query retries. `QueryClient.fetchQuery()` does not apply retry configuration.
 </Note>
 
-The RetryEngine provides error classification, backoff strategies, and configurable retry policies. It is used by `QueryEngine.executeQuery()` for query retries and `MutationEntry.mutateWithRetry()` for mutation retries.
+The RetryEngine provides error classification, backoff strategies, and configurable retry policies.
 
 ### Usage via QueryEngine
 
-`QueryEngine` wraps `QueryClient` with automatic retry support:
+`QueryEngine` wraps `QueryClient` with automatic retry support. Note that `QueryEngine`
+is internal and not exported from the package root:
 
 ```typescript
-import { QueryEngine } from '@soulcache/core/query';
-
-const engine = new QueryEngine({ staleTime: 5000 });
-
-const data = await engine.executeQuery({
-  queryKey: ['users'],
-  queryFn: async (signal) => {
-    const res = await fetch('/api/users', { signal });
-    return res.json();
-  },
-  retry: {
-    maxRetries: 3,
-    baseDelay: 1000,
-    maxDelay: 30000,
-    backoff: 'exponential',
-    jitter: true,
-  },
-});
+// QueryEngine is internal — this module is not available to consumers.
+// Query retries are handled by the internal query pipeline.
 ```
 
 ### Usage via MutationEntry
 
-The primary way to use retry logic for mutations is through `MutationEntry.mutateWithRetry()`:
+`MutationEntry.mutateWithRetry()` provides retry logic for mutations as a self-contained
+retry loop (it does not use `RetryEngine`):
 
 ```typescript
 const entry = mutationCache.create({
@@ -65,8 +53,12 @@ The internal `RetryConfig` interface used by `RetryEngine`:
 | `backoff` | `'exponential'` | Backoff strategy |
 | `jitter` | `true` | Add random jitter |
 
-<Note type="warning" title="QueryClient.fetchQuery()">
-`QueryClient.fetchQuery()` only accepts `{ queryKey, queryFn }` and does not support retry configuration. For query retries, use `QueryEngine.executeQuery()` instead. The `retry` and `retryDelay` parameters in `QueryClient.mutate()` are accepted but not currently passed through to `MutationEntry`.
+<Note type="warning" title="QueryClient.fetchQuery() / mutate()">
+`QueryClient.fetchQuery()` only accepts `{ queryKey, queryFn }` and does not apply retry
+configuration. The `retry` and `retryDelay` options on `QueryClient.mutate()` are
+accepted and forwarded to `MutationCache.create()`, but they have no effect because
+`QueryClient.mutate()` performs a single attempt — use
+`MutationEntry.mutateWithRetry()` for retrying mutations.
 </Note>
 
 ### Retry Concepts

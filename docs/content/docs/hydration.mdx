@@ -110,6 +110,12 @@ interface HydrationOptions {
 }
 ```
 
+`mergeStrategy` controls how hydration treats queries that already exist in the cache:
+
+- `'overwrite'` (default): the dehydrated entry replaces the existing entry
+- `'skip'`: existing entries are left untouched; only missing queries are added
+- `'merge'`: existing entries with data are preserved; entries without data are hydrated
+
 ### Usage
 
 #### Server Side

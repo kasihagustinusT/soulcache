@@ -3,41 +3,58 @@ title: Query Engine
 description: API Reference for the QueryEngine (higher-level orchestrator)
 ---
 
-## QueryEngine
+## QueryEngine (Internal)
 
-The QueryEngine is a higher-level orchestrator that wraps `QueryClient` with additional features like automatic retry (via `RetryEngine`), background refetch intervals, and stale-time-aware cache reads.
+<Note type="info" title="Internal Implementation">
+`QueryEngine` is an internal module of `@soulcache/core`. It is not exported from the
+package root and is not part of the public API (`@soulcache/core/query` does not
+resolve). The public query API is `QueryClient` (core) and the `useQuery` family of
+hooks (`@soulcache/react`).
+</Note>
 
-### Access
+The QueryEngine is a higher-level orchestrator that wraps `QueryClient` with additional
+features like automatic retry (via `RetryEngine`), background refetch intervals, and
+stale-time-aware cache reads.
+
+### Public API
+
+For consumers, query execution is driven through `QueryClient`:
 
 ```typescript
-import { QueryEngine } from '@soulcache/core/query';
+import { QueryClient } from '@soulcache/core';
 
-const engine = new QueryEngine({
-  staleTime: 5000,
-  refetchInterval: 30000,
-});
+const client = new QueryClient();
 
-// Execute with retry support
-const data = await engine.executeQuery({
+const data = await client.fetchQuery({
   queryKey: ['users'],
-  queryFn: async (signal) => {
-    const res = await fetch('/api/users', { signal });
+  queryFn: async () => {
+    const res = await fetch('/api/users');
     return res.json();
   },
-  retry: { maxRetries: 3, baseDelay: 1000 },
 });
+```
 
-// Access underlying QueryClient
-const client = engine.client;
+Or through the React adapter:
+
+```typescript
+import { useQuery } from '@soulcache/react';
+
+const { data } = useQuery({
+  queryKey: ['users'],
+  queryFn: async () => {
+    const res = await fetch('/api/users');
+    return res.json();
+  },
+});
 ```
 
 ### Key Differences from QueryClient
 
-| Feature | QueryClient | QueryEngine |
+| Feature | QueryClient | QueryEngine (internal) |
 |---------|-------------|-------------|
-| Retry support | No | Yes (via RetryEngine) |
+| Retry support | No (retry config not applied) | Yes (via RetryEngine) |
 | Background refetch | No | Yes (via `refetchInterval`) |
-| Stale-time-aware reads | No | Yes (via `staleTime` option) |
+| Stale-time-aware reads | Yes (via `defaultOptions.staleTime`) | Yes (via `staleTime` option) |
 | Abort signal support | No | Yes (passed to `queryFn`) |
 
 ### Related

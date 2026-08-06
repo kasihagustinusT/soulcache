@@ -1,0 +1,83 @@
+---
+title: DevTools
+description: Inspect and debug SoulCache runtime state
+---
+
+## DevTools
+
+SoulCache DevTools provides real-time inspection of the runtime cache, queries, mutations, and performance.
+
+### Installation
+
+```bash
+npm install @soulcache/devtools @soulcache/devtools-core @soulcache/core react
+```
+
+### Quick Start
+
+Render `SoulCacheDevToolsPanel` inside the `SoulCacheProvider`:
+
+```tsx
+import { QueryClient } from '@soulcache/core';
+import { SoulCacheProvider } from '@soulcache/react';
+import { SoulCacheDevToolsPanel, useSoulCacheDevTools } from '@soulcache/devtools';
+
+const queryClient = new QueryClient();
+
+function App() {
+  const devTools = useSoulCacheDevTools({ client: queryClient });
+
+  return (
+    <SoulCacheProvider client={queryClient}>
+      <MyApp />
+      <SoulCacheDevToolsPanel devtools={devTools} />
+    </SoulCacheProvider>
+  );
+}
+```
+
+### Features
+
+- Floating panel toggled with the keyboard shortcut (Ctrl/Cmd+Shift+D)
+- Query, Mutation, and Cache inspection
+- Timeline recording with event filtering
+- Performance metrics with p50, p95, and p99 latencies
+- Health diagnostics with recommendations
+- Session recording and replay
+
+### Tabs
+
+The panel exposes six tabs:
+
+| Tab | Contents |
+|-----|----------|
+| Queries | Query entries with status, data, and timestamps |
+| Mutations | Mutation history with optimistic update context |
+| Timeline | Event stream with type filtering |
+| Metrics | Latency percentiles (p50, p95, p99) |
+| Health | Diagnostics and configuration validation |
+| Settings | Panel configuration options |
+
+### Hook
+
+For programmatic access, use the `useSoulCacheDevTools` hook:
+
+```tsx
+import { useSoulCacheDevTools } from '@soulcache/devtools';
+
+const devTools = useSoulCacheDevTools({ client });
+
+devTools.captureSnapshot(); // Inspect current cache state
+```
+
+The hook accepts a `QueryClient` instance and an `enabled` flag, and returns a `SoulCacheDevTools` instance with `captureSnapshot`, `getTimeline`, `getMetrics`, `checkHealth`, and session recording (`startRecording` / `stopRecording` / `exportRecording`).
+
+### Package Overview
+
+- `@soulcache/devtools-core` — framework-agnostic inspection and diagnostics layer
+- `@soulcache/devtools` — React panel built on `@soulcache/devtools-core`
+
+### Related
+
+- [React Adapter](/docs/react-adapter)
+- [Performance](/docs/performance)

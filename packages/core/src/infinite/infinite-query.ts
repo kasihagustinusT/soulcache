@@ -6,6 +6,36 @@ import type {
 import { generateId } from '../utils/query.utils';
 
 /**
+ * Default maximum number of pages retained when no `maxPages` option is given.
+ *
+ * BUG-3: the previous `Infinity` default retained every fetched page for the
+ * lifetime of the query, causing unbounded memory growth on long-lived
+ * infinite queries. A finite default bounds retention while remaining generous
+ * for typical infinite-scroll windows. Consumers that need every page retained
+ * opt out explicitly with `maxPages: Infinity`.
+ */
+const DEFAULT_MAX_PAGES = 50;
+
+/**
+ * Normalize a `maxPages` value into a valid retention cap.
+ *
+ * - `undefined` → the finite default (50).
+ * - `NaN` → the finite default (50).
+ * - `Infinity` → unbounded (explicit opt-out).
+ * - non-positive values → 1 (the minimum meaningful cap).
+ * - positive non-integers → floored to the nearest integer.
+ */
+function normalizeMaxPages(value: number | undefined): number {
+  if (value === undefined || Number.isNaN(value)) {
+    return DEFAULT_MAX_PAGES;
+  }
+  if (value === Infinity) {
+    return Infinity;
+  }
+  return Math.max(1, Math.floor(value));
+}
+
+/**
  * Infinite Query
  *
  * Manages paginated data with forward and backward navigation.
@@ -68,7 +98,7 @@ export class InfiniteQuery<TData = unknown, TPageParam = unknown> {
     this._initialPageParam = (options.initialPageParam ?? 0) as TPageParam;
     this._getNextPageParam = options.getNextPageParam;
     this._getPreviousPageParam = options.getPreviousPageParam;
-    this._maxPages = options.maxPages ?? Infinity;
+    this._maxPages = normalizeMaxPages(options.maxPages);
 
     this._pages = [];
     this._pageParams = [];
@@ -335,6 +365,9 @@ export class InfiniteQuery<TData = unknown, TPageParam = unknown> {
       if (this._pages.length > this._maxPages) {
         this._pages = this._pages.slice(1).map((p, i) => ({ ...p, pageIndex: i }));
         this._pageParams = this._pageParams.slice(1);
+        // Eviction moved the window edge; the previous-page flag must be
+        // recomputed or it can go stale (forward exhaustion is not terminal).
+        this.updateHasPreviousPage();
       }
 
       this.updateHasNextPage();
@@ -436,6 +469,9 @@ export class InfiniteQuery<TData = unknown, TPageParam = unknown> {
       if (this._pages.length > this._maxPages) {
         this._pages = this._pages.slice(0, -1);
         this._pageParams = this._pageParams.slice(0, -1);
+        // Eviction moved the window edge; the next-page flag must be
+        // recomputed or it can go stale (backward exhaustion is not terminal).
+        this.updateHasNextPage();
       }
 
       this.updateHasPreviousPage();

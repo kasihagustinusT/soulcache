@@ -148,7 +148,7 @@ import { useInfiniteQuery } from '@soulcache/react';
 
 function PostList() {
   const {
-    data, fetchNextPage, fetchPreviousPage,
+    data, pages, fetchNextPage, fetchPreviousPage,
     hasNextPage, hasPreviousPage,
     isFetchingNextPage, isFetchingPreviousPage,
     pageCount,
@@ -163,8 +163,8 @@ function PostList() {
 
   return (
     <div>
-      {data?.pages.map((page, i) => (
-        <div key={i}>
+      {pages.map((page, i) => (
+        <div key={page.pageIndex}>
           {page.data.map(post => (
             <Post key={post.id} post={post} />
           ))}
@@ -254,13 +254,15 @@ function MutationStatus() {
 Enable devtools for debugging:
 
 ```tsx
-import { SoulCacheDevToolsPanel } from '@soulcache/devtools';
+import { SoulCacheDevToolsPanel, useSoulCacheDevTools } from '@soulcache/devtools';
 
 function App() {
+  const devtools = useSoulCacheDevTools({ client });
+
   return (
     <SoulCacheProvider client={client}>
       <MyApp />
-      <SoulCacheDevToolsPanel />
+      <SoulCacheDevToolsPanel devtools={devtools} />
     </SoulCacheProvider>
   );
 }

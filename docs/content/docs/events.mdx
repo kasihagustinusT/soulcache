@@ -10,10 +10,9 @@ SoulCache routes cross-subsystem communication through a single internal
 the runtime diagnosable without re-instrumentation (devtools, persistence,
 and telemetry attach as passive subscribers).
 
-> **Status:** draft — this page documents the current M1.1 event contract and
-> will be extended as the EventBus evolves (the public `subscribeToRuntime` export
-> ships with the M1 milestone's final task M1.5; opt-in coalescing lands with M1.3;
-> SSR hydration events land with M2).
+> **Note:** the `EventBus` class and the runtime event contract are stable in
+> v1.1.0; `subscribeCoalesced` is marked experimental for opt-in high-volume
+> subscribers.
 
 ### The event envelope
 
@@ -65,15 +64,15 @@ bus.emit({
 unsubscribe();
 ```
 
-The public `subscribeToRuntime` entry point supersedes direct `EventBus` use
-for application consumers (ships with M1.5); the raw `EventBus` class
-remains an internal runtime primitive.
+The raw `EventBus` class is the public entry point for runtime events in
+`@soulcache/core`; application consumers subscribe directly to the event types
+they care about.
 
 ### Opt-in coalesced delivery (experimental)
 
-> **Status:** experimental (`subscribeCoalesced`, M1.3). Its contract is pinned
-> here so downstream consumers (devtools, persistence) rely on documented
-> semantics before it becomes stable.
+> **Status:** experimental. Its contract is pinned here so downstream
+> consumers (devtools, persistence) rely on documented semantics before it
+> becomes stable.
 
 High-volume, loss-tolerant subscribers (devtools taps, persistence writers)
 can opt into **coalesced delivery** instead of the default synchronous path:

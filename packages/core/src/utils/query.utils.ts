@@ -72,12 +72,29 @@ export function isQueryKeyEqual(a: QueryKey, b: QueryKey): boolean {
  *
  * Performs deep equality comparison.
  *
+ * Guards against pathological recursion (e.g. deeply nested or cyclic
+ * structures) by bounding the traversal depth. Exceeding the depth limit
+ * throws a RangeError rather than risking a stack overflow.
+ *
  * @param a - First value
  * @param b - Second value
  * @returns Whether the values are deeply equal
  */
 export function deepEqual(a: unknown, b: unknown): boolean {
+  return deepEqualInternal(a, b, 0);
+}
+
+/** Maximum recursion depth before deepEqual aborts. */
+const MAX_DEPTH = 100;
+
+function deepEqualInternal(a: unknown, b: unknown, depth: number): boolean {
   if (Object.is(a, b)) return true;
+
+  if (depth > MAX_DEPTH) {
+    throw new RangeError(
+      `deepEqual exceeded maximum depth of ${MAX_DEPTH}; possible cyclic or pathological structure`,
+    );
+  }
 
   if (a === null || b === null) return false;
   if (a === undefined || b === undefined) return false;
@@ -91,7 +108,7 @@ export function deepEqual(a: unknown, b: unknown): boolean {
   if (Array.isArray(a) && Array.isArray(b)) {
     if (a.length !== b.length) return false;
     for (let i = 0; i < a.length; i++) {
-      if (!deepEqual(a[i], b[i])) return false;
+      if (!deepEqualInternal(a[i], b[i], depth + 1)) return false;
     }
     return true;
   }
@@ -104,9 +121,10 @@ export function deepEqual(a: unknown, b: unknown): boolean {
   for (const key of keysA) {
     if (!Object.prototype.hasOwnProperty.call(b, key)) return false;
     if (
-      !deepEqual(
+      !deepEqualInternal(
         (a as Record<string, unknown>)[key],
         (b as Record<string, unknown>)[key],
+        depth + 1,
       )
     ) {
       return false;

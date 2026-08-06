@@ -6,37 +6,19 @@ description: Internal architecture - Plugin lifecycle management
 ## PluginManager (Internal)
 
 <Note type="info" title="Internal Implementation">
-`PluginManager` is an internal class. Plugins are registered through the QueryClient configuration.
+`PluginManager` is an internal class of `@soulcache/core`. It is not exported from the
+package root and is not wired into `QueryClient` configuration (there is no `plugins`
+option on `QueryClientConfig`). It is a standalone internal module.
 </Note>
 
 The PluginManager coordinates plugin registration, validation, lifecycle management, and hook execution. It is used internally by the runtime to manage plugin state machines.
 
-### Public Usage
+### Public Availability
 
-Plugins are registered through the QueryClient configuration:
-
-```typescript
-// Plugin types are internal to @soulcache/core
-// Import from the plugin subpath when it becomes public
-import type { Plugin, PluginContext } from '@soulcache/core/plugin';
-
-const myPlugin: Plugin = {
-  metadata: {
-    id: 'logging',
-    name: 'Logging Plugin',
-    version: '1.0.0',
-  },
-  onAfterInit: (ctx: PluginContext) => {
-    ctx.log('info', 'Plugin initialized');
-  },
-  onBeforeQuery: (queryKey: unknown[], ctx: PluginContext) => {
-    ctx.log('info', `Query starting: ${queryKey.join('/')}`);
-  },
-  onAfterQuery: (queryKey: unknown[], ctx: PluginContext) => {
-    ctx.log('info', `Query completed: ${queryKey.join('/')}`);
-  },
-};
-```
+The plugin types (`Plugin`, `PluginContext`, `PluginHooks`) and the `PluginManager`
+class are internal to `@soulcache/core` and are not exported from the package root.
+The `@soulcache/core/plugin` subpath does not resolve. There is no public plugin
+registration API in the current release.
 
 ### Plugin Lifecycle
 

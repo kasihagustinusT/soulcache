@@ -259,9 +259,19 @@ export class MutationEntry<TData = unknown, TVariables = unknown> {
 
       this.notifyListeners();
 
-      // Execute callbacks
-      this._onSuccessFn?.(data, variables);
-      this._onSettledFn?.(data, null, variables);
+      // Isolated callbacks: a throwing onSuccess/onSettled must not corrupt the
+      // committed success state, skip onSettled, or escape mutate() as a
+      // mutation failure (BUG-1).
+      try {
+        this._onSuccessFn?.(data, variables);
+      } catch {
+        /* isolate callback errors */
+      }
+      try {
+        this._onSettledFn?.(data, null, variables);
+      } catch {
+        /* isolate callback errors */
+      }
 
       return data;
     } catch (error) {
@@ -278,9 +288,18 @@ export class MutationEntry<TData = unknown, TVariables = unknown> {
 
       this.notifyListeners();
 
-      // Execute callbacks
-      this._onErrorFn?.(err, variables);
-      this._onSettledFn?.(undefined, err, variables);
+      // Isolated callbacks: a throwing onError/onSettled must not prevent
+      // onSettled from running or replace the original mutation error (BUG-1).
+      try {
+        this._onErrorFn?.(err, variables);
+      } catch {
+        /* isolate callback errors */
+      }
+      try {
+        this._onSettledFn?.(undefined, err, variables);
+      } catch {
+        /* isolate callback errors */
+      }
 
       throw err;
     } finally {

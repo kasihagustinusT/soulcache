@@ -271,7 +271,7 @@ export class RetryEngine {
         };
       } catch (rawError) {
         if (abortListener) signal?.removeEventListener('abort', abortListener);
-        const error = rawError instanceof Error ? rawError : new Error(String(rawError));
+        const error = toError(rawError);
         const errorClass = this.classifyError(error);
         lastError = error;
 
@@ -391,7 +391,12 @@ export class RetryEngine {
     };
 
     for (const listener of listeners) {
-      listener(event);
+      try {
+        listener(event);
+      } catch {
+        // A listener exception must not corrupt the retry outcome nor escape
+        // execute() (BUG-2). Mirrors the EventBus per-handler isolation.
+      }
     }
   }
 
@@ -458,4 +463,37 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
       signal.addEventListener('abort', onAbort);
     }
   });
+}
+
+/**
+ * Normalize Error
+ *
+ * Coerces a thrown value into an Error without destroying its identity.
+ *
+ * Real Errors pass through unchanged. Error-like values that are not
+ * `instanceof Error` in the current realm (notably browser/jsdom DOMException,
+ * which does not share the Error prototype) keep their `name` and `message`,
+ * so name-based classification (error-classifier.ts) and downstream
+ * `error.name === 'AbortError'` checks keep working. Plain values fall back
+ * to a String() message, matching the previous wrapping behavior.
+ */
+function toError(raw: unknown): Error {
+  if (raw instanceof Error) return raw;
+  if (isErrorLike(raw)) {
+    const error = new Error(typeof raw.message === 'string' ? raw.message : String(raw));
+    error.name = raw.name;
+    return error;
+  }
+  return new Error(String(raw));
+}
+
+/**
+ * Check if a value carries a string name (Error-like).
+ */
+function isErrorLike(raw: unknown): raw is { name: string; message: unknown } {
+  return (
+    typeof raw === 'object' &&
+    raw !== null &&
+    typeof (raw as { name?: unknown }).name === 'string'
+  );
 }

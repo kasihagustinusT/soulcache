@@ -23,9 +23,12 @@ new QueryClient(config?: QueryClientConfig)
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `config.defaultOptions.staleTime` | `number` | `300000` (5 min) | Time before data is stale |
 | `config.defaultOptions.gcTime` | `number` | `1800000` (30 min) | Time before garbage collection |
 | `config.logger` | `Logger` | `undefined` | Custom logger implementing `{ info, warn, error, debug }` |
+
+> Note: `config.defaultOptions.staleTime` is accepted and stamped on cache
+> entries but is not yet used for revalidation decisions in the current public
+> runtime. It will drive stale-time refetching in a future milestone.
 
 ### Properties
 
@@ -100,8 +103,14 @@ mutate<TData, TVariables = void>(options: {
   onSuccess?: (data: TData, variables: TVariables) => void;
   onError?: (error: Error, variables: TVariables) => void;
   onSettled?: (data: TData | undefined, error: Error | null, variables: TVariables) => void;
+  retry?: number;
+  retryDelay?: number;
 }): Promise<TData>
 ```
+
+> **Note:** `retry` and `retryDelay` are accepted and forwarded to
+> `MutationCache.create()`, but `mutate()` performs a single attempt. Use
+> `MutationEntry.mutateWithRetry()` for retrying mutations.
 
 #### `invalidateQueries(queryKey)`
 

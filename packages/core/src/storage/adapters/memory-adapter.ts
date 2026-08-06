@@ -9,10 +9,24 @@
 import type { StorageAdapter, StorageUsage } from '../types';
 
 /**
+ * Memory storage adapter configuration.
+ */
+export interface MemoryAdapterOptions {
+  /**
+   * Maximum number of entries retained. When the cap is reached, the oldest
+   * entry (by insertion order) is evicted on the next `set`.
+   * Defaults to `Infinity` (unbounded).
+   */
+  readonly maxEntries?: number;
+}
+
+/**
  * Memory storage adapter.
  *
  * Stores data in a Map. Useful for testing, SSR, and development.
  * Data is lost when the process exits.
+ *
+ * By default the store is unbounded; pass `{ maxEntries }` to cap memory use.
  */
 export class MemoryAdapter implements StorageAdapter {
   /** Adapter name */
@@ -24,6 +38,13 @@ export class MemoryAdapter implements StorageAdapter {
   /** Ready state */
   private ready = false;
 
+  /** Maximum number of entries before the oldest is evicted. */
+  private readonly maxEntries: number;
+
+  constructor(options?: MemoryAdapterOptions) {
+    this.maxEntries = options?.maxEntries ?? Infinity;
+  }
+
   /**
    * Get a value by key.
    */
@@ -34,9 +55,17 @@ export class MemoryAdapter implements StorageAdapter {
 
   /**
    * Set a key-value pair.
+   *
+   * When the entry cap is reached, the oldest entry is evicted first.
    */
   async set(key: string, value: string): Promise<void> {
     this.ensureReady();
+    if (!this.store.has(key) && this.store.size >= this.maxEntries) {
+      const oldest = this.store.keys().next().value;
+      if (oldest !== undefined) {
+        this.store.delete(oldest);
+      }
+    }
     this.store.set(key, value);
   }
 
@@ -134,6 +163,6 @@ export class MemoryAdapter implements StorageAdapter {
 /**
  * Create a new MemoryAdapter instance.
  */
-export function createMemoryAdapter(): MemoryAdapter {
-  return new MemoryAdapter();
+export function createMemoryAdapter(options?: MemoryAdapterOptions): MemoryAdapter {
+  return new MemoryAdapter(options);
 }

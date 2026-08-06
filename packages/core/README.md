@@ -29,11 +29,14 @@ client.destroy();
 
 - Zero runtime dependencies
 - Full TypeScript with strict mode
-- Automatic caching with stale-while-revalidate
+- Automatic caching with configurable TTL
 - Request deduplication
-- Retry with backoff strategies
-- Plugin system
+- Cache invalidation
+- Mutations and infinite queries
 - Framework agnostic
+
+> Note: retry, stale-time revalidation, and the plugin system exist as internal
+> modules and are targeted for integration in future milestones.
 
 ## Documentation
 

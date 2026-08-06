@@ -14,14 +14,14 @@ A high-performance runtime for data fetching and caching
 [![Release](https://github.com/kasihagustinusT/soulcache/actions/workflows/release.yml/badge.svg)](https://github.com/kasihagustinusT/soulcache/actions/workflows/release.yml)
 [![npm](https://img.shields.io/npm/v/@soulcache/core)](https://www.npmjs.com/package/@soulcache/core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.4+-blue.svg)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8+-blue.svg)](https://www.typescriptlang.org/)
 [![Documentation](https://img.shields.io/badge/Docs-soulcache.vercel.app-green.svg)](https://soulcache.vercel.app)
 
 [Documentation](https://soulcache.vercel.app) | [npm](https://www.npmjs.com/package/@soulcache/core) | [Issues](https://github.com/kasihagustinusT/soulcache/issues)
 
 </div>
 
-SoulCache is a framework-agnostic TypeScript runtime for data fetching and caching. It provides request deduplication, background refetching, retry logic, cache invalidation, and SSR hydration with zero runtime dependencies.
+SoulCache is a framework-agnostic TypeScript runtime for data fetching and caching. It provides request deduplication, cache invalidation, mutations, infinite queries, and SSR hydration with zero runtime dependencies. Retry and background refetching are internal modules targeted for integration in future milestones.
 
 ## Why SoulCache
 
@@ -39,13 +39,13 @@ SoulCache is built for applications that fetch data from multiple sources and ne
 | **Framework-agnostic runtime** | Works with any UI framework or vanilla JavaScript |
 | **Zero runtime dependencies** | Tree-shakeable packages with no external dependencies |
 | **TypeScript-first API** | Strict mode with full type inference |
-| **Query caching** | Stale-while-revalidate, configurable TTL, automatic eviction |
+| **Query caching** | Configurable TTL, automatic eviction, request deduplication |
 | **Request deduplication** | Concurrent requests for the same key share a single network call |
-| **Mutations** | Optimistic updates with rollback and automatic cache invalidation |
-| **Infinite queries** | Cursor-based pagination with page deduplication |
+| **Mutations** | Optimistic updates with rollback; invalidate dependent queries from callbacks |
+| **Infinite queries** | Cursor- or offset-based pagination with a bounded page window |
 | **SSR & hydration** | Server-side prefetching with dehydrate/hydrate support |
 | **Storage persistence** | Pluggable persistence with MemoryAdapter and migration support |
-| **Plugin system** | Lifecycle hooks for query, mutation, and cache events |
+| **Plugin system** | Lifecycle hooks for query, mutation, and cache events *(internal — roadmap)* |
 | **React bindings** | Hooks built on `useSyncExternalStore` for React 18+ |
 | **DevTools** | Real-time inspection panel with timeline and performance metrics |
 
@@ -128,7 +128,7 @@ const unsubscribe = client.subscribe(['users'], (snapshot) => {
 // Update cache
 client.setQueryData(['users'], (prev) => [...prev, newUser]);
 
-// Invalidate and refetch
+// Invalidate cache entries (mark stale; call fetchQuery to refetch)
 await client.invalidateQueries(['users']);
 
 // Cleanup
@@ -174,7 +174,7 @@ function UserList() {
 
 | Package | Purpose | Status |
 |---------|---------|--------|
-| [`@soulcache/core`](./packages/core) | Core runtime with cache, query engine, retry, scheduler, storage, and plugin system | Stable |
+| [`@soulcache/core`](./packages/core) | Core runtime with cache, state machine, scheduler, storage, and event bus | Stable |
 | [`@soulcache/react`](./packages/react) | React bindings via `useSyncExternalStore` | Stable |
 | [`@soulcache/devtools-core`](./packages/devtools-core) | Framework-agnostic inspection and diagnostics | Stable |
 | [`@soulcache/devtools`](./packages/devtools) | React DevTools panel with timeline, metrics, and session recording | Stable |
@@ -194,21 +194,12 @@ function UserList() {
 | [Performance](https://soulcache.vercel.app/docs/performance) | Benchmarks and optimization |
 | [Troubleshooting](https://soulcache.vercel.app/docs/troubleshooting) | Common issues and solutions |
 
-• Semantic Versioning
-
-• MIT License
-
-• GitHub Actions CI
-
-• TypeScript strict mode
-
-• Framework-agnostic runtime
-
 - Production-ready
 - MIT License
 - Semantic Versioning
 - GitHub Actions CI/CD
 - TypeScript strict mode
+- Framework-agnostic runtime
 - Actively maintained
 
 ## Contributing

@@ -25,6 +25,8 @@ Include:
 This policy applies to:
 - `@soulcache/core`
 - `@soulcache/react`
+- `@soulcache/devtools-core`
+- `@soulcache/devtools`
 
 ## Security Best Practices
 
@@ -38,5 +40,6 @@ This policy applies to:
 
 | Version | Supported |
 |---------|-----------|
+| 1.1.x   | Yes       |
 | 1.0.x   | Yes       |
 | < 1.0   | No        |

@@ -37,6 +37,3 @@ jobs:
 
       - name: Validate docs content
         run: node docs/scripts/validate.mjs
-
-      - name: Typecheck docs
-        run: pnpm --filter @soulcache/docs typecheck

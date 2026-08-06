@@ -48,8 +48,8 @@ The central orchestration layer that owns all major subsystems:
 - Event emission via EventBus
 - Task scheduling via Scheduler
 
-<Note type="info" title="QueryEngine">
-`QueryEngine` is a higher-level wrapper around `QueryClient` that adds retry support (via `RetryEngine`), background refetch intervals, and stale-time-aware cache reads. Use `QueryClient` for direct control, or `QueryEngine` for automatic retry and polling.
+<Note type="info" title="QueryEngine (internal)">
+`QueryEngine` is an internal higher-level wrapper around `QueryClient` that adds retry support (via `RetryEngine`), refetch intervals, and stale-time-aware cache reads. It is not exported from the package root and is targeted for integration in future milestones. Use `QueryClient` for the current public runtime.
 </Note>
 
 #### CacheEngine
@@ -57,8 +57,8 @@ The central orchestration layer that owns all major subsystems:
 In-memory cache with O(1) Map-based lookups:
 
 - Automatic garbage collection based on `gcTime`
-- Stale-while-revalidate via `staleTime`
-- LRU eviction for memory management
+- Configurable staleness via `staleTime`
+- Weighted eviction for memory management
 - Dependency tracking for invalidation propagation
 - Version tracking for consistency
 
@@ -111,7 +111,7 @@ Internal typed event system for module communication:
 | Module | Key Classes | Exported |
 |--------|-------------|----------|
 | `client/` | QueryClient | Yes |
-| `query/` | QueryEngine, QueryStateMachine | Both |
+| `query/` | QueryEngine, QueryStateMachine | QueryStateMachine only |
 | `cache/` | CacheEngine, QueryEntry | Yes |
 | `mutation/` | MutationEntry, MutationCache, MutationObserver | Yes |
 | `infinite/` | InfiniteQuery | Yes |

@@ -223,11 +223,15 @@ export class QueryEntry<T = unknown> implements QueryRecord<T> {
   /**
    * Calculate LRU score for eviction.
    * Lower score = more eligible for eviction.
+   *
+   * Correct semantics (BUG-4): a recently and frequently accessed entry should
+   * score HIGHER (less eligible). Recency is inverted because a larger elapsed
+   * time means the entry is older (more eligible).
    */
   getLRUScore(): number {
     const recency = Date.now() - this._lastAccessedAt;
     const frequency = this._accessCount;
     const observerBonus = this.observerCount * 1000000;
-    return recency - frequency * 1000 - observerBonus;
+    return frequency * 1000 + observerBonus - recency;
   }
 }

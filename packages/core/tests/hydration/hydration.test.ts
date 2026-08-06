@@ -210,6 +210,70 @@ describe('Hydration Runtime', () => {
       hydrate(cache, null as unknown as DehydratedState);
       expect(cache.size).toBe(0);
     });
+
+    it('should skip existing queries with mergeStrategy skip', () => {
+      cache.set({ queryKey: ['a'], data: 'existing', state: 'success' });
+      const state: DehydratedState = {
+        version: 1,
+        timestamp: Date.now(),
+        queries: [
+          { queryKey: ['a'], queryHash: '["a"]', data: 'fresh', state: 'success', updatedAt: Date.now() },
+          { queryKey: ['b'], queryHash: '["b"]', data: 2, state: 'success', updatedAt: Date.now() },
+        ],
+      };
+
+      hydrate(cache, state, { mergeStrategy: 'skip' });
+
+      expect(cache.get(['a'])?.data).toBe('existing');
+      expect(cache.get(['b'])?.data).toBe(2);
+    });
+
+    it('should overwrite existing queries by default', () => {
+      cache.set({ queryKey: ['a'], data: 'existing', state: 'success' });
+      const state: DehydratedState = {
+        version: 1,
+        timestamp: Date.now(),
+        queries: [
+          { queryKey: ['a'], queryHash: '["a"]', data: 'fresh', state: 'success', updatedAt: Date.now() },
+        ],
+      };
+
+      hydrate(cache, state);
+
+      expect(cache.get(['a'])?.data).toBe('fresh');
+    });
+
+    it('should preserve existing data with mergeStrategy merge', () => {
+      cache.set({ queryKey: ['a'], data: 'existing', state: 'success' });
+      const state: DehydratedState = {
+        version: 1,
+        timestamp: Date.now(),
+        queries: [
+          { queryKey: ['a'], queryHash: '["a"]', data: 'fresh', state: 'success', updatedAt: Date.now() },
+          { queryKey: ['b'], queryHash: '["b"]', data: 2, state: 'success', updatedAt: Date.now() },
+        ],
+      };
+
+      hydrate(cache, state, { mergeStrategy: 'merge' });
+
+      expect(cache.get(['a'])?.data).toBe('existing');
+      expect(cache.get(['b'])?.data).toBe(2);
+    });
+
+    it('should hydrate existing entries without data under merge', () => {
+      cache.set({ queryKey: ['a'], data: undefined, state: 'idle' });
+      const state: DehydratedState = {
+        version: 1,
+        timestamp: Date.now(),
+        queries: [
+          { queryKey: ['a'], queryHash: '["a"]', data: 'fresh', state: 'success', updatedAt: Date.now() },
+        ],
+      };
+
+      hydrate(cache, state, { mergeStrategy: 'merge' });
+
+      expect(cache.get(['a'])?.data).toBe('fresh');
+    });
   });
 
   describe('serialize/deserialize', () => {
@@ -279,6 +343,38 @@ describe('Hydration Runtime', () => {
       const restored = deserialize(json);
 
       expect(restored.queries[0].data).toEqual(original.queries[0].data);
+    });
+  });
+
+  describe('deserialize input validation', () => {
+    it('should throw SyntaxError on invalid JSON', () => {
+      expect(() => deserialize('not json')).toThrow(SyntaxError);
+    });
+
+    it('should throw TypeError on non-object JSON', () => {
+      expect(() => deserialize('null')).toThrow(TypeError);
+      expect(() => deserialize('[]')).toThrow(TypeError);
+      expect(() => deserialize('"hello"')).toThrow(TypeError);
+      expect(() => deserialize('42')).toThrow(TypeError);
+    });
+
+    it('should throw TypeError when queries is not an array', () => {
+      expect(() => deserialize('{"version":1,"queries":{}}')).toThrow(TypeError);
+    });
+
+    it('should throw TypeError when a query is not an object', () => {
+      expect(() => deserialize('{"version":1,"queries":[42]}')).toThrow(TypeError);
+    });
+
+    it('should throw TypeError when a query lacks an array queryKey', () => {
+      expect(() =>
+        deserialize('{"version":1,"queries":[{"queryKey":"nope","data":1,"state":"success"}]}'),
+      ).toThrow(TypeError);
+    });
+
+    it('should accept state without queries', () => {
+      const restored = deserialize('{"version":1,"timestamp":0}');
+      expect(restored.version).toBe(1);
     });
   });
 

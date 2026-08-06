@@ -39,7 +39,7 @@ interface InfiniteQueryOptions<TData, TPageParam> {
   readonly enabled?: boolean;
   readonly staleTime?: number;
   readonly gcTime?: number;
-  readonly maxPages?: number;                   // default: Infinity
+  readonly maxPages?: number;                   // default: 50 (set Infinity to keep all pages)
 }
 ```
 
@@ -53,6 +53,7 @@ interface InfiniteQueryState<TData> {
   readonly hasPreviousPage: boolean;
   readonly isFetchingNextPage: boolean;
   readonly isFetchingPreviousPage: boolean;
+  readonly isFetching: boolean;
   readonly error: Error | null;
 }
 ```
@@ -74,6 +75,9 @@ interface InfiniteQueryPage<TData> {
 | `id` | `string` | Unique query ID |
 | `queryKey` | `readonly unknown[]` | Query cache key |
 | `data` | `TData[]` | Flat array of all page data |
+| `state` | `InfiniteQueryState<TData>` | Snapshot of the current query state |
+| `isLoading` | `boolean` | Whether the initial fetch is in progress (no data yet) |
+| `isFetching` | `boolean` | Whether any fetch (initial, next, or previous) is in progress |
 | `hasNextPage` | `boolean` | Whether next page is available |
 | `hasPreviousPage` | `boolean` | Whether previous page is available |
 | `isFetchingNextPage` | `boolean` | Whether next page is fetching |
@@ -179,8 +183,8 @@ const unsubscribe = query.subscribe(() => {
     description="Support for both forward and backward pagination"
   />
   <FeatureCard
-    title="Background Refetching"
-    description="Pages are refreshed in the background to stay current"
+    title="Bounded Page Window"
+    description="Up to 50 pages retained by default to control memory"
   />
   <FeatureCard
     title="Max Pages Limit"
@@ -194,7 +198,9 @@ const unsubscribe = query.subscribe(() => {
 - **Use stable cursors** — Ensure consistent pagination across refetches
 - **Handle loading states** — Show feedback during page fetches
 - **Implement error boundaries** — Handle fetch failures gracefully
-- **Limit pages** — Use maxPages to control memory usage
+- **Understand the page cap** — Up to 50 pages are retained by default; oldest
+  pages are evicted beyond the cap. Set `maxPages: Infinity` to keep every page,
+  or a smaller value to bound memory harder.
 </Note>
 
 ### Related

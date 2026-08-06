@@ -144,4 +144,38 @@ describe('MemoryAdapter', () => {
       expect(adapter.name).toBe('memory');
     });
   });
+
+  describe('maxEntries', () => {
+    it('should evict the oldest entry when the cap is reached', async () => {
+      const capped = new MemoryAdapter({ maxEntries: 2 });
+      await capped.initialize();
+      await capped.set('a', '1');
+      await capped.set('b', '2');
+      await capped.set('c', '3');
+
+      expect(await capped.getSize()).toBe(2);
+      expect(await capped.get('a')).toBeNull();
+      expect(await capped.get('b')).toBe('2');
+      expect(await capped.get('c')).toBe('3');
+    });
+
+    it('should overwrite in place without evicting when the key exists', async () => {
+      const capped = new MemoryAdapter({ maxEntries: 2 });
+      await capped.initialize();
+      await capped.set('a', '1');
+      await capped.set('b', '2');
+      await capped.set('a', 'updated');
+
+      expect(await capped.getSize()).toBe(2);
+      expect(await capped.get('a')).toBe('updated');
+      expect(await capped.get('b')).toBe('2');
+    });
+
+    it('should be unbounded by default', async () => {
+      await adapter.set('a', '1');
+      await adapter.set('b', '2');
+      await adapter.set('c', '3');
+      expect(await adapter.getSize()).toBe(3);
+    });
+  });
 });

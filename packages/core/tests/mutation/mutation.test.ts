@@ -145,6 +145,136 @@ describe('MutationEntry', () => {
       const [, error] = onSettled.mock.calls[0];
       expect(error.message).toBe('err');
     });
+
+    it('should not corrupt successful mutation state when onSuccess throws (BUG-1)', async () => {
+      const onError = vi.fn();
+      const entry = new MutationEntry({
+        mutationId: 'mut-bug1-success',
+        mutationFn: async () => 'data',
+        onSuccess: () => {
+          throw new Error('callback boom');
+        },
+        onError,
+      });
+
+      // A throwing success callback must NOT turn a success into a rejection
+      await expect(entry.mutate({})).resolves.toBe('data');
+      expect(entry.status).toBe('success');
+      expect(entry.data).toBe('data');
+      expect(entry.error).toBeNull();
+      expect(onError).not.toHaveBeenCalled();
+    });
+
+    it('should still run onSettled after onSuccess throws (BUG-1)', async () => {
+      const onSettled = vi.fn();
+      const entry = new MutationEntry({
+        mutationId: 'mut-bug1-settled-success',
+        mutationFn: async () => 'data',
+        onSuccess: () => {
+          throw new Error('callback boom');
+        },
+        onSettled,
+      });
+
+      await entry.mutate({});
+
+      expect(onSettled).toHaveBeenCalledTimes(1);
+      expect(onSettled).toHaveBeenCalledWith('data', null, {});
+    });
+
+    it('should commit success state before onSuccess runs (BUG-1)', async () => {
+      let observedStatus: string | undefined;
+      let observedData: unknown;
+      const entry = new MutationEntry({
+        mutationId: 'mut-bug1-commit',
+        mutationFn: async () => 'data',
+        onSuccess: (data) => {
+          observedStatus = entry.status;
+          observedData = data;
+        },
+      });
+
+      await entry.mutate({});
+
+      expect(observedStatus).toBe('success');
+      expect(observedData).toBe('data');
+    });
+
+    it('should not replace the original error when onError throws (BUG-1)', async () => {
+      const onSettled = vi.fn();
+      const entry = new MutationEntry({
+        mutationId: 'mut-bug1-error',
+        mutationFn: async () => {
+          throw new Error('boom');
+        },
+        onError: () => {
+          throw new Error('callback boom');
+        },
+        onSettled,
+      });
+
+      // The ORIGINAL mutation error must propagate, not the callback error
+      let thrown: unknown;
+      try {
+        await entry.mutate({});
+      } catch (e) {
+        thrown = e;
+      }
+      expect(thrown).toBeInstanceOf(Error);
+      expect((thrown as Error).message).toBe('boom');
+      expect(entry.status).toBe('error');
+      expect(entry.error?.message).toBe('boom');
+    });
+
+    it('should still run onSettled after onError throws (BUG-1)', async () => {
+      const onSettled = vi.fn();
+      const entry = new MutationEntry({
+        mutationId: 'mut-bug1-settled-error',
+        mutationFn: async () => {
+          throw new Error('boom');
+        },
+        onError: () => {
+          throw new Error('callback boom');
+        },
+        onSettled,
+      });
+
+      await expect(entry.mutate({})).rejects.toThrow('boom');
+
+      expect(onSettled).toHaveBeenCalledTimes(1);
+      const [, error] = onSettled.mock.calls[0];
+      expect(error.message).toBe('boom');
+    });
+
+    it('should not corrupt successful state when onSettled throws (BUG-1)', async () => {
+      const entry = new MutationEntry({
+        mutationId: 'mut-bug1-onSettled',
+        mutationFn: async () => 'data',
+        onSettled: () => {
+          throw new Error('callback boom');
+        },
+      });
+
+      await expect(entry.mutate({})).resolves.toBe('data');
+      expect(entry.status).toBe('success');
+      expect(entry.error).toBeNull();
+    });
+
+    it('should still mark mutation error when onMutate throws (BUG-1 preserved)', async () => {
+      const onError = vi.fn();
+      const entry = new MutationEntry({
+        mutationId: 'mut-bug1-onMutate',
+        mutationFn: async () => 'data',
+        onMutate: () => {
+          throw new Error('optimistic boom');
+        },
+        onError,
+      });
+
+      await expect(entry.mutate({})).rejects.toThrow('optimistic boom');
+      expect(entry.status).toBe('error');
+      expect(onError).toHaveBeenCalled();
+    });
   });
 
   describe('mutateWithRetry', () => {
@@ -173,6 +303,26 @@ describe('MutationEntry', () => {
       });
 
       await expect(entry.mutateWithRetry({}, 2, 10)).rejects.toThrow('always fail');
+    });
+
+    it('should NOT retry a successful mutation when a callback throws (BUG-1)', async () => {
+      let attempts = 0;
+      const entry = new MutationEntry({
+        mutationId: 'mut-bug1-no-retry',
+        mutationFn: async () => {
+          attempts++;
+          return 'success';
+        },
+        onSuccess: () => {
+          throw new Error('callback boom');
+        },
+      });
+
+      // Callback errors are not mutation failures: no retry, no duplicate write
+      await expect(entry.mutateWithRetry({}, 3, 10)).resolves.toBe('success');
+      expect(attempts).toBe(1);
+      expect(entry.status).toBe('success');
+      expect(entry.isError).toBe(false);
     });
   });
 

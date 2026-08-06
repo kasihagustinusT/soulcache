@@ -89,8 +89,9 @@ describe('QueryEntry', () => {
     entry.touch();
     const score2 = entry.getLRUScore();
 
-    // Score should decrease with access (more recently accessed = lower score)
-    expect(score2).toBeLessThan(score1);
+    // More recently/frequently accessed entries score HIGHER (less eligible for
+    // eviction). Correct LRU: old + infrequently-accessed = most eligible.
+    expect(score2).toBeGreaterThan(score1);
   });
 
   it('should implement QueryRecord interface', () => {
@@ -324,6 +325,51 @@ describe('CacheEngine', () => {
       smallCache.set({ queryKey: ['users', 4] });
 
       expect(smallCache.size).toBe(3);
+    });
+
+    it('should evict the least-recently-used entry, not the most recently used (BUG-4)', () => {
+      const smallCache = new CacheEngine({ maxSize: 2 });
+
+      smallCache.set({ queryKey: ['users', 1] });
+      smallCache.set({ queryKey: ['users', 2] });
+
+      // Bump entry 1 to most-recently-used + most-frequently-used
+      smallCache.get(['users', 1]);
+
+      // Overflow triggers eviction
+      smallCache.set({ queryKey: ['users', 3] });
+
+      expect(smallCache.has(['users', 1])).toBe(true);
+      expect(smallCache.has(['users', 2])).toBe(false);
+      expect(smallCache.has(['users', 3])).toBe(true);
+    });
+
+    it('should evict the oldest entry when all are equally cold (BUG-4)', async () => {
+      const smallCache = new CacheEngine({ maxSize: 2 });
+
+      smallCache.set({ queryKey: ['users', 1] });
+      await new Promise((r) => setTimeout(r, 10));
+      smallCache.set({ queryKey: ['users', 2] });
+      smallCache.set({ queryKey: ['users', 3] });
+
+      expect(smallCache.has(['users', 1])).toBe(false);
+      expect(smallCache.has(['users', 2])).toBe(true);
+      expect(smallCache.has(['users', 3])).toBe(true);
+    });
+
+    it('should protect a hot entry over a cold one (BUG-4 frequency axis)', () => {
+      const smallCache = new CacheEngine({ maxSize: 2 });
+
+      smallCache.set({ queryKey: ['users', 1] });
+      smallCache.get(['users', 1]);
+      smallCache.get(['users', 1]);
+
+      smallCache.set({ queryKey: ['users', 2] });
+      smallCache.set({ queryKey: ['users', 3] });
+
+      expect(smallCache.has(['users', 1])).toBe(true);
+      expect(smallCache.has(['users', 2])).toBe(false);
+      expect(smallCache.has(['users', 3])).toBe(true);
     });
 
     it('should not evict active entries', () => {

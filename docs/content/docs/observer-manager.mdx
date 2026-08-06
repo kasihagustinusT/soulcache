@@ -6,10 +6,15 @@ description: Internal architecture - Observer coordination and subscription mana
 ## ObserverManager (Internal)
 
 <Note type="info" title="Internal Implementation">
-`ObserverManager` is an internal class used by QueryClient. Use `QueryClient.subscribe()` for the public observation API.
+`ObserverManager` is an internal class of `@soulcache/core`. It is not used by
+`QueryClient` (which manages `QueryObserver` instances directly) and it is not exported
+from the package root. Use `QueryClient.subscribe()` for the public observation API.
 </Note>
 
-The ObserverManager coordinates observer subscriptions, batches notifications, and manages observer lifecycle. It is used internally by `QueryClient` to manage `QueryObserver` instances.
+The ObserverManager is a standalone internal module for coordinating observer
+subscriptions. Notifications are delivered synchronously (they are not batched).
+`QueryClient` manages `QueryObserver` instances directly rather than through the
+ObserverManager.
 
 ### Public Alternative
 
