@@ -58,7 +58,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: "Set Commit Status - Pending"
-        uses: myrotvorets/set-commit-status-action@v2
+        uses: myrotvorets/set-commit-status-action@v2.0.1
         with:
           token: ${{ steps.bot-token.outputs.token || github.token }}
           status: pending
@@ -197,7 +197,7 @@ jobs:
 
       - name: "Set Final Commit Status"
         if: always()
-        uses: myrotvorets/set-commit-status-action@v2
+        uses: myrotvorets/set-commit-status-action@v2.0.1
         with:
           token: ${{ steps.bot-token.outputs.token || github.token }}
           status: ${{ steps.overall.outputs.status }}
