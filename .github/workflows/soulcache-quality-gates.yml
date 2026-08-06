@@ -19,9 +19,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
+    env:
+      SOULCACHE_BOT_APP_ID: ${{ secrets.SOULCACHE_BOT_APP_ID }}
+      SOULCACHE_BOT_PRIVATE_KEY: ${{ secrets.SOULCACHE_BOT_PRIVATE_KEY }}
+
     steps:
+      - name: "Resolve Bot Token"
+        id: token
+        run: |
+          if [ -n "$SOULCACHE_BOT_APP_ID" ] && [ -n "$SOULCACHE_BOT_PRIVATE_KEY" ]; then
+            echo "source=app" >> "$GITHUB_OUTPUT"
+          else
+            echo "source=default" >> "$GITHUB_OUTPUT"
+            echo "::warning::GitHub App secrets (SOULCACHE_BOT_APP_ID / SOULCACHE_BOT_PRIVATE_KEY) not configured. Using the default github-actions bot identity."
+          fi
+
       - name: "Generate Bot Token"
         id: bot-token
+        if: steps.token.outputs.source == 'app'
         uses: actions/create-github-app-token@v1
         with:
           app-id: ${{ secrets.SOULCACHE_BOT_APP_ID }}
@@ -45,7 +60,7 @@ jobs:
       - name: "Set Commit Status - Pending"
         uses: myrotvorets/set-commit-status-action@v2
         with:
-          token: ${{ steps.bot-token.outputs.token }}
+          token: ${{ steps.bot-token.outputs.token || github.token }}
           status: pending
           context: "SoulCache Quality Gates"
           description: "Quality gates are running..."
@@ -54,7 +69,7 @@ jobs:
       - name: "Post Initial Comment"
         uses: marocchino/sticky-pull-request-comment@v2
         with:
-          GITHUB_TOKEN: ${{ steps.bot-token.outputs.token }}
+          GITHUB_TOKEN: ${{ steps.bot-token.outputs.token || github.token }}
           header: soulcache-quality-gates
           message: |
             <p align="center">
@@ -151,7 +166,7 @@ jobs:
         if: always()
         uses: marocchino/sticky-pull-request-comment@v2
         with:
-          GITHUB_TOKEN: ${{ steps.bot-token.outputs.token }}
+          GITHUB_TOKEN: ${{ steps.bot-token.outputs.token || github.token }}
           header: soulcache-quality-gates
           message: |
             <p align="center">
@@ -184,7 +199,7 @@ jobs:
         if: always()
         uses: myrotvorets/set-commit-status-action@v2
         with:
-          token: ${{ steps.bot-token.outputs.token }}
+          token: ${{ steps.bot-token.outputs.token || github.token }}
           status: ${{ steps.overall.outputs.status }}
           context: "SoulCache Quality Gates"
           description: ${{ steps.overall.outputs.status == 'success' && 'All quality gates passed' || 'One or more quality gates failed' }}
