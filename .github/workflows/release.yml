@@ -11,9 +11,50 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  verify:
+    name: Verify (pre-release gates)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      - name: Test (bug verification suite)
+        run: pnpm test:bugs
+
+      - name: Test (React bindings)
+        run: pnpm --filter @soulcache/react test
+
+      - name: Check public API (CA-7)
+        run: pnpm check:api
+
+      - name: Validate packages
+        run: node scripts/validate-exports.mjs
+
   release:
     name: Release
     runs-on: ubuntu-latest
+    needs: [verify]
     timeout-minutes: 15
     permissions:
       contents: write
