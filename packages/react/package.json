@@ -58,7 +58,7 @@
     "jsdom": "^25.0.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
-    "typescript": "^5.8.0"
+    "typescript": "^7.0.2"
   },
   "peerDependencies": {
     "@soulcache/core": "workspace:*",
