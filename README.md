@@ -54,6 +54,7 @@ SoulCache is built for applications that fetch data from multiple sources and ne
 ## Architecture
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace", "primaryColor": "#1e1e1e", "primaryTextColor": "#e8e8e8", "primaryBorderColor": "#e8e8e8", "secondaryColor": "#1e1e1e", "tertiaryColor": "#1e1e1e", "lineColor": "#7f8c8d", "clusterBkg": "#111111", "clusterBorder": "#555555", "edgeLabelBackground": "#1e1e1e", "edgeLabelTextColor": "#e8e8e8", "nodeBorder": "#e8e8e8", "nodeTextColor": "#e8e8e8"}}}%%
 flowchart TB
     subgraph APP["Application Layer"]
         direction LR
@@ -111,11 +112,11 @@ flowchart TB
     DTC --> DT
     UI --> DT
 
-    classDef app fill:#0ea5e9,stroke:#0284c7,color:#ffffff,stroke-width:2px
-    classDef adapter fill:#8b5cf6,stroke:#7c3aed,color:#ffffff,stroke-width:2px
-    classDef core fill:#f59e0b,stroke:#d97706,color:#1f2937,stroke-width:2px
-    classDef persist fill:#10b981,stroke:#059669,color:#ffffff,stroke-width:2px
-    classDef dev fill:#ef4444,stroke:#dc2626,color:#ffffff,stroke-width:2px
+    classDef app fill:#3a3a3a,stroke:#f2f2f2,color:#ffffff,stroke-width:2px
+    classDef adapter fill:#333333,stroke:#e8e8e8,color:#f5f5f5,stroke-width:2px
+    classDef core fill:#2c2c2c,stroke:#dcdcdc,color:#f5f5f5,stroke-width:2px
+    classDef persist fill:#252525,stroke:#c8c8c8,color:#e8e8e8,stroke-width:2px
+    classDef dev fill:#1e1e1e,stroke:#b0b0b0,color:#dcdcdc,stroke-width:2px
 
     class UI,SSR app
     class PROV,HOOKS,HYD adapter

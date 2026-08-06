@@ -1,12 +1,26 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useTheme } from 'next-themes';
+
+const MONOCHROME_VARIABLES = {
+  fontFamily: "ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace",
+  primaryColor: '#1e1e1e',
+  primaryTextColor: '#e8e8e8',
+  primaryBorderColor: '#e8e8e8',
+  secondaryColor: '#1e1e1e',
+  tertiaryColor: '#1e1e1e',
+  lineColor: '#7f8c8d',
+  clusterBkg: '#111111',
+  clusterBorder: '#555555',
+  edgeLabelBackground: '#1e1e1e',
+  edgeLabelTextColor: '#e8e8e8',
+  nodeBorder: '#e8e8e8',
+  nodeTextColor: '#e8e8e8',
+};
 
 export function Mermaid({ chart }: { chart: string }) {
   const [svg, setSvg] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
-  const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -22,9 +36,9 @@ export function Mermaid({ chart }: { chart: string }) {
       mermaid.initialize({
         startOnLoad: false,
         securityLevel: 'strict',
-        fontFamily: 'inherit',
+        theme: 'base',
+        themeVariables: MONOCHROME_VARIABLES,
         themeCSS: 'margin: 1.5rem auto 0;',
-        theme: resolvedTheme === 'dark' ? 'dark' : 'default',
       });
 
       const id = `mermaid-${Math.random().toString(36).slice(2, 9)}`;
@@ -38,7 +52,7 @@ export function Mermaid({ chart }: { chart: string }) {
 
     render();
     return () => { cancelled = true; };
-  }, [chart, resolvedTheme, mounted]);
+  }, [chart, mounted]);
 
   if (!mounted || !svg) {
     return (
