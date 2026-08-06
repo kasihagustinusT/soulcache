@@ -10,29 +10,74 @@ SoulCache is designed with a modular, layered architecture that separates concer
 ### High-Level Overview
 
 <Mermaid
-  chart={`graph TD
-    A["Application"]:::highlight
-    B["React Adapter"]:::accent
-    C["Core Runtime"]:::highlight
-    D["QueryClient"]
-    E["CacheEngine"]
-    F["MutationCache"]
-    G["Scheduler"]
-    H["EventBus"]
-    I["StorageManager"]
+  chart={`flowchart TB
+    subgraph APP["Application Layer"]
+        direction LR
+        UI["UI Components"]
+        SSR["SSR / Server Components"]
+    end
 
-    A --> B
-    B --> C
-    C --> D
-    D --> E
-    D --> F
-    D --> G
-    D --> H
-    I -.->|"persistence"| E
+    subgraph AD["Adapter · @soulcache/react"]
+        direction LR
+        PROV["SoulCacheProvider"]
+        HOOKS["useQuery · useMutation · useInfiniteQuery · usePrefetchQuery"]
+        HYD["HydrationBoundary"]
+    end
 
-    classDef highlight fill:#374151,stroke:#6b7280,color:#f9fafb,stroke-width:2px
-    classDef accent fill:#4b5563,stroke:#9ca3af,color:#f9fafb,stroke-width:2px
-    classDef default fill:#1f2937,stroke:#4b5563,color:#e5e7eb,stroke-width:1px`}
+    subgraph CORE["Core Runtime · @soulcache/core"]
+        direction LR
+        QC["QueryClient"]
+        CE["CacheEngine"]
+        QSM["QueryStateMachine"]
+        MC["MutationCache"]
+        SC["Scheduler"]
+        EB["EventBus"]
+    end
+
+    subgraph PERS["Persistence · @soulcache/core"]
+        direction LR
+        SM["StorageManager"]
+        PC["PersistenceCoordinator"]
+        MM["MigrationManager"]
+    end
+
+    subgraph DEV["Developer Tooling"]
+        direction LR
+        DTC["@soulcache/devtools-core"]
+        DT["@soulcache/devtools"]
+    end
+
+    UI --> PROV
+    SSR --> HYD
+    PROV --> HOOKS
+    HYD --> QC
+    HOOKS --> QC
+
+    QC --> CE
+    QC --> QSM
+    QC --> MC
+    QC --> SC
+    QC --> EB
+
+    CE --> SM
+    SM --> PC
+    PC --> MM
+
+    QC --> DTC
+    DTC --> DT
+    UI --> DT
+
+    classDef app fill:#0ea5e9,stroke:#0284c7,color:#ffffff,stroke-width:2px
+    classDef adapter fill:#8b5cf6,stroke:#7c3aed,color:#ffffff,stroke-width:2px
+    classDef core fill:#f59e0b,stroke:#d97706,color:#1f2937,stroke-width:2px
+    classDef persist fill:#10b981,stroke:#059669,color:#ffffff,stroke-width:2px
+    classDef dev fill:#ef4444,stroke:#dc2626,color:#ffffff,stroke-width:2px
+
+    class UI,SSR app
+    class PROV,HOOKS,HYD adapter
+    class QC,CE,QSM,MC,SC,EB core
+    class SM,PC,MM persist
+    class DTC,DT dev`}
 />
 
 ### Core Components

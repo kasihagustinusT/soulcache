@@ -54,35 +54,74 @@ SoulCache is built for applications that fetch data from multiple sources and ne
 ## Architecture
 
 ```mermaid
-flowchart TD
-    App[Application] --> RA[React Adapter]
-    RA --> QC[QueryClient]
+flowchart TB
+    subgraph APP["Application Layer"]
+        direction LR
+        UI["UI Components"]
+        SSR["SSR / Server Components"]
+    end
 
-    QC --> CE[CacheEngine]
-    QC --> MC[MutationCache]
-    QC --> EB[EventBus]
-    QC --> SC[Scheduler]
+    subgraph AD["Adapter · @soulcache/react"]
+        direction LR
+        PROV["SoulCacheProvider"]
+        HOOKS["useQuery · useMutation · useInfiniteQuery · usePrefetchQuery"]
+        HYD["HydrationBoundary"]
+    end
 
-    QE[QueryEngine] --> QC
-    QE --> RE[RetryEngine]
+    subgraph CORE["Core Runtime · @soulcache/core"]
+        direction LR
+        QC["QueryClient"]
+        CE["CacheEngine"]
+        QSM["QueryStateMachine"]
+        MC["MutationCache"]
+        SC["Scheduler"]
+        EB["EventBus"]
+    end
 
-    MC --> ME[MutationEntry]
-    ME --> MO[MutationObserver]
+    subgraph PERS["Persistence · @soulcache/core"]
+        direction LR
+        SM["StorageManager"]
+        PC["PersistenceCoordinator"]
+        MM["MigrationManager"]
+    end
 
-    CE --> QSM[QueryStateMachine]
-    QSM --> QO[QueryObserver]
+    subgraph DEV["Developer Tooling"]
+        direction LR
+        DTC["@soulcache/devtools-core"]
+        DT["@soulcache/devtools"]
+    end
 
-    ST[StorageManager] --> PM[PersistenceCoordinator]
-    PM --> MM[MigrationManager]
-    PM --> RM[RestoreManager]
+    UI --> PROV
+    SSR --> HYD
+    PROV --> HOOKS
+    HYD --> QC
+    HOOKS --> QC
 
-    App --> DT[DevTools]
+    QC --> CE
+    QC --> QSM
+    QC --> MC
+    QC --> SC
+    QC --> EB
 
-    classDef core fill:#374151,stroke:#6b7280,color:#f9fafb
-    classDef internal fill:#1f2937,stroke:#4b5563,color:#e5e7eb
-    class QC,CE,MC core
-    class QE,RE internal
-    class EB,SC,QSM,ME,MO,QO,ST,PM,MM,RM internal
+    CE --> SM
+    SM --> PC
+    PC --> MM
+
+    QC --> DTC
+    DTC --> DT
+    UI --> DT
+
+    classDef app fill:#0ea5e9,stroke:#0284c7,color:#ffffff,stroke-width:2px
+    classDef adapter fill:#8b5cf6,stroke:#7c3aed,color:#ffffff,stroke-width:2px
+    classDef core fill:#f59e0b,stroke:#d97706,color:#1f2937,stroke-width:2px
+    classDef persist fill:#10b981,stroke:#059669,color:#ffffff,stroke-width:2px
+    classDef dev fill:#ef4444,stroke:#dc2626,color:#ffffff,stroke-width:2px
+
+    class UI,SSR app
+    class PROV,HOOKS,HYD adapter
+    class QC,CE,QSM,MC,SC,EB core
+    class SM,PC,MM persist
+    class DTC,DT dev
 ```
 
 ## Installation
