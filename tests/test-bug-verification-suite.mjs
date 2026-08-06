@@ -7,7 +7,7 @@
  * built distribution (each package's dist folder). Runs without vitest:
  *
  *   pnpm build
- *   node --test test-bug-verification-suite.mjs
+ *   node --test tests/test-bug-verification-suite.mjs
  *
  * Covers: BC1 (checksum algorithm superset), BC2/BC3 (markStale/isStale
  * shims), fetch-status reset on error path, cache round-trip, observer
@@ -17,7 +17,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import * as core from './packages/core/dist/index.js';
+import * as core from '../packages/core/dist/index.js';
 
 const persistedState = () => ({
   version: 1,

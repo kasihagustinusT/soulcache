@@ -21,7 +21,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:bugs": "node --test test-bug-verification-suite.mjs",
+    "test:bugs": "node --test tests/test-bug-verification-suite.mjs",
     "test:integration": "vitest run packages/core/src/storage/__tests__/integration.test.ts packages/core/tests/scheduler/scheduler.test.ts",
     "test:stress": "vitest run packages/core/tests/cache/stress.test.ts",
     "test:memory": "vitest run packages/core/tests/p2-regression/ packages/core/tests/p3-regression/storage-clear-post-async-guard.test.ts",
