@@ -25,3 +25,5 @@ out/
 # Transient benchmark run artifacts (committed baselines stay in benchmarks/results/)
 benchmarks/results/run-*.json
 .tmp-bench/
+.vercel
+.env*
