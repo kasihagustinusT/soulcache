@@ -1,0 +1,212 @@
+name: "SoulCache Quality Gates"
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  statuses: write
+
+concurrency:
+  group: soulcache-quality-gates-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  quality-gates:
+    name: "Quality Gates"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      SOULCACHE_BOT_APP_ID: ${{ secrets.SOULCACHE_BOT_APP_ID }}
+      SOULCACHE_BOT_PRIVATE_KEY: ${{ secrets.SOULCACHE_BOT_PRIVATE_KEY }}
+
+    steps:
+      - name: "Resolve Bot Token"
+        id: token
+        run: |
+          if [ -n "$SOULCACHE_BOT_APP_ID" ] && [ -n "$SOULCACHE_BOT_PRIVATE_KEY" ]; then
+            echo "source=app" >> "$GITHUB_OUTPUT"
+          else
+            echo "source=default" >> "$GITHUB_OUTPUT"
+            echo "::warning::GitHub App secrets (SOULCACHE_BOT_APP_ID / SOULCACHE_BOT_PRIVATE_KEY) not configured. Using the default github-actions bot identity."
+          fi
+
+      - name: "Generate Bot Token"
+        id: bot-token
+        if: steps.token.outputs.source == 'app'
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.SOULCACHE_BOT_APP_ID }}
+          private-key: ${{ secrets.SOULCACHE_BOT_PRIVATE_KEY }}
+
+      - name: "Checkout Repository"
+        uses: actions/checkout@v4
+
+      - name: "Setup pnpm"
+        uses: pnpm/action-setup@v4
+
+      - name: "Setup Node.js"
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - name: "Install Dependencies"
+        run: pnpm install --frozen-lockfile
+
+      - name: "Set Commit Status - Pending"
+        uses: myrotvorets/set-commit-status-action@v2.0.1
+        with:
+          token: ${{ steps.bot-token.outputs.token || github.token }}
+          status: pending
+          context: "SoulCache Quality Gates"
+          description: "Quality gates are running..."
+          target-url: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - name: "Post Initial Comment"
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          GITHUB_TOKEN: ${{ steps.bot-token.outputs.token || github.token }}
+          header: soulcache-quality-gates
+          message: |
+            <p align="center">
+              <img src="https://res.cloudinary.com/vaslp5ww/image/upload/v1784809523/soulcache-logo_isux6t.svg" alt="SoulCache" width="40" />
+            </p>
+
+            ## SoulCache Quality Gates
+
+            Running quality checks for commit `${{ github.event.pull_request.head.sha }}`...
+
+            | Gate | Status | Details |
+            |------|--------|---------|
+            | Build | Running... | Build in progress |
+            | Typecheck | Running... | Type check in progress |
+            | Test | Running... | Tests in progress |
+            | Package Integrity | Running... | Integrity check in progress |
+
+            ---
+
+            <sub>Automated by SoulCache</sub>
+
+      - name: "Quality Gate: Build"
+        id: build
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          if pnpm build 2>&1 | tee build.log; then
+            echo "status=success" >> "$GITHUB_OUTPUT"
+            echo "details=Build completed successfully" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=failure" >> "$GITHUB_OUTPUT"
+            echo "details=Build failed. Review the workflow log for the failing package." >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: "Quality Gate: Typecheck"
+        id: typecheck
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          if pnpm typecheck 2>&1 | tee typecheck.log; then
+            echo "status=success" >> "$GITHUB_OUTPUT"
+            echo "details=TypeScript types are valid" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=failure" >> "$GITHUB_OUTPUT"
+            echo "details=TypeScript errors found. Review the workflow log for the failing file." >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: "Quality Gate: Test"
+        id: test
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          if pnpm test 2>&1 | tee test.log; then
+            echo "status=success" >> "$GITHUB_OUTPUT"
+            echo "details=All tests passed" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=failure" >> "$GITHUB_OUTPUT"
+            echo "details=Tests failed. Review the workflow log for the failing suite." >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: "Quality Gate: Package Integrity"
+        id: integrity
+        continue-on-error: true
+        run: |
+          if [ -f scripts/check-package-integrity.sh ]; then
+            if bash scripts/check-package-integrity.sh 2>&1 | tee integrity.log; then
+              echo "status=success" >> "$GITHUB_OUTPUT"
+              echo "details=All packages clean, no leaks detected" >> "$GITHUB_OUTPUT"
+            else
+              echo "status=failure" >> "$GITHUB_OUTPUT"
+              echo "details=Package leak detected. Review the workflow log for the affected package." >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "status=skipped" >> "$GITHUB_OUTPUT"
+            echo "details=Integrity check script not found" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: "Determine Overall Status"
+        id: overall
+        if: always()
+        run: |
+          BUILD="${{ steps.build.outcome }}"
+          TYPECHECK="${{ steps.typecheck.outcome }}"
+          TEST="${{ steps.test.outcome }}"
+          INTEGRITY="${{ steps.integrity.outcome }}"
+
+          if [ "$BUILD" = "success" ] && [ "$TYPECHECK" = "success" ] && [ "$TEST" = "success" ] && [ "$INTEGRITY" != "failure" ]; then
+            echo "status=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=failure" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: "Update Final Comment"
+        if: always()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          GITHUB_TOKEN: ${{ steps.bot-token.outputs.token || github.token }}
+          header: soulcache-quality-gates
+          message: |
+            <p align="center">
+              <img src="https://res.cloudinary.com/vaslp5ww/image/upload/v1784809523/soulcache-logo_isux6t.svg" alt="SoulCache" width="40" />
+            </p>
+
+            ## SoulCache Quality Gates
+
+            Commit: `${{ github.event.pull_request.head.sha }}`
+
+            | Gate | Status | Details |
+            |------|--------|---------|
+            | Build | ${{ steps.build.outputs.status == 'success' && 'Passed' || 'Failed' }} | ${{ steps.build.outputs.details || 'N/A' }} |
+            | Typecheck | ${{ steps.typecheck.outputs.status == 'success' && 'Passed' || 'Failed' }} | ${{ steps.typecheck.outputs.details || 'N/A' }} |
+            | Test | ${{ steps.test.outputs.status == 'success' && 'Passed' || 'Failed' }} | ${{ steps.test.outputs.details || 'N/A' }} |
+            | Package Integrity | ${{ steps.integrity.outputs.status == 'success' && 'Passed' || steps.integrity.outputs.status == 'skipped' && 'Skipped' || 'Failed' }} | ${{ steps.integrity.outputs.details || 'N/A' }} |
+
+            ---
+
+            <details>
+            <summary>Workflow Run Details</summary>
+
+            [View full workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+            </details>
+
+            <sub>Automated by SoulCache | PR: #${{ github.event.pull_request.number }}</sub>
+
+      - name: "Set Final Commit Status"
+        if: always()
+        uses: myrotvorets/set-commit-status-action@v2.0.1
+        with:
+          token: ${{ steps.bot-token.outputs.token || github.token }}
+          status: ${{ steps.overall.outputs.status }}
+          context: "SoulCache Quality Gates"
+          description: ${{ steps.overall.outputs.status == 'success' && 'All quality gates passed' || 'One or more quality gates failed' }}
+          target-url: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - name: "Fail on Quality Gate Failure"
+        if: steps.overall.outputs.status == 'failure'
+        run: |
+          echo "Quality gates failed. See the PR comment for details."
+          exit 1
