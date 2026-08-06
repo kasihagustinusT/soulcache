@@ -54,7 +54,6 @@ SoulCache is built for applications that fetch data from multiple sources and ne
 ## Architecture
 
 ```mermaid
-%%{init: {"theme": "base", "themeVariables": {"fontFamily": "ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace", "primaryColor": "#1e1e1e", "primaryTextColor": "#e8e8e8", "primaryBorderColor": "#e8e8e8", "secondaryColor": "#1e1e1e", "tertiaryColor": "#1e1e1e", "lineColor": "#7f8c8d", "clusterBkg": "#111111", "clusterBorder": "#555555", "edgeLabelBackground": "#1e1e1e", "edgeLabelTextColor": "#e8e8e8", "nodeBorder": "#e8e8e8", "nodeTextColor": "#e8e8e8"}}}%%
 flowchart TB
     subgraph APP["Application Layer"]
         direction LR
@@ -123,6 +122,12 @@ flowchart TB
     class QC,CE,QSM,MC,SC,EB core
     class SM,PC,MM persist
     class DTC,DT dev
+
+    style APP fill:none,stroke:#6e7681,stroke-dasharray:4 3,stroke-width:1px
+    style AD fill:none,stroke:#6e7681,stroke-dasharray:4 3,stroke-width:1px
+    style CORE fill:none,stroke:#6e7681,stroke-dasharray:4 3,stroke-width:1px
+    style PERS fill:none,stroke:#6e7681,stroke-dasharray:4 3,stroke-width:1px
+    style DEV fill:none,stroke:#6e7681,stroke-dasharray:4 3,stroke-width:1px
 ```
 
 ## Installation
