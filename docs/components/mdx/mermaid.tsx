@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react';
 
 const MONOCHROME_VARIABLES = {
-  background: '#0d1117',
   fontFamily: "ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace",
   fontSize: 14,
   primaryColor: '#3a3a3a',
@@ -16,10 +15,10 @@ const MONOCHROME_VARIABLES = {
   tertiaryTextColor: '#e6edf3',
   tertiaryBorderColor: '#6e7681',
   lineColor: '#6e7681',
-  clusterBkg: '#010409',
+  clusterBkg: '#161b22',
   clusterBorder: '#30363d',
-  titleColor: '#e6edf3',
-  edgeLabelBackground: '#161b22',
+  titleColor: '#6e7681',
+  edgeLabelBackground: '#21262d',
   edgeLabelTextColor: '#e6edf3',
   nodeBorder: '#e6edf3',
   nodeTextColor: '#e6edf3',
