@@ -14,6 +14,7 @@ A high-performance runtime for data fetching and caching
 [![Release](https://github.com/kasihagustinusT/soulcache/actions/workflows/release.yml/badge.svg)](https://github.com/kasihagustinusT/soulcache/actions/workflows/release.yml)
 [![SoulCache Quality Gates](https://github.com/kasihagustinusT/soulcache/actions/workflows/soulcache-quality-gates.yml/badge.svg)](https://github.com/kasihagustinusT/soulcache/actions/workflows/soulcache-quality-gates.yml)
 [![npm](https://img.shields.io/npm/v/@soulcache/core)](https://www.npmjs.com/package/@soulcache/core)
+[![GitHub release](https://img.shields.io/github/v/release/kasihagustinusT/soulcache)](https://github.com/kasihagustinusT/soulcache/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8+-blue.svg)](https://www.typescriptlang.org/)
 [![Documentation](https://img.shields.io/badge/Docs-soulcache.vercel.app-green.svg)](https://soulcache.vercel.app)
