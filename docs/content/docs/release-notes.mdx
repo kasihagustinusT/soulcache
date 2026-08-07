@@ -5,6 +5,37 @@ description: Changelog and release notes
 
 ## Release Notes
 
+### v1.1.1
+
+#### Security
+
+- **Honest checksum algorithms (SLC-INTEGRITY-001)** — `checksum: 'sha-256'` now
+  writes a real FIPS 180-4 SHA-256 digest (64-hex). Previously every configured
+  label (`sha-256`, `sha-384`, `sha-512`, `md5`, `fast-32`) silently computed the
+  same 32-bit djb2 value. Writes under the never-implemented `sha-384`/`sha-512`/
+  `md5` labels now throw; payloads persisted by 1.0.0/1.1.0 remain readable
+  (dual-mode verification).
+- **`dehydrate()` no longer includes `error.stack` by default (SLC-HYDRATE-003)** —
+  internal file paths no longer leak to clients in SSR flows. Opt in with
+  `includeStack: true`.
+- **`hydrate()` validates entry structure (SLC-HYDRATE-001)** — malformed entries
+  are rejected before they can corrupt the cache; `overwrite` semantics unchanged.
+- **`generateId()` uses a CSPRNG (SLC-RNG-001)** — `crypto.randomUUID()` when
+  available, legacy scheme as fallback.
+
+#### Upgrade notes
+
+- No public API changes; no persisted-payload migration required.
+- Review the [migration guide](/docs/migration-guide) for the two behavior changes
+  (`error.stack` opt-in, deprecated checksum labels).
+
+#### Links
+
+- [CHANGELOG](https://github.com/kasihagustinusT/soulcache/blob/main/CHANGELOG.md)
+- [GitHub Release v1.1.1](https://github.com/kasihagustinusT/soulcache/releases/tag/v1.1.1)
+- [@soulcache/core on npm](https://www.npmjs.com/package/@soulcache/core)
+- [Security guidance](/docs/security)
+
 ### v1.1.0
 
 #### Features

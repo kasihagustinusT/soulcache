@@ -1,6 +1,6 @@
 {
   "name": "@soulcache/react",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "SoulCache React bindings - Thin adapter layer for React",
   "license": "MIT",
   "author": "Kasih Agustinus <kasihagustinus@users.noreply.github.com>",

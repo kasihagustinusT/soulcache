@@ -7,6 +7,36 @@ description: Migrate from other libraries to SoulCache
 
 This guide helps you migrate from other data fetching libraries to SoulCache.
 
+### Upgrading v1.1.0 → v1.1.1
+
+v1.1.1 is a security patch. The public API is unchanged and no persisted-payload
+migration is required. Review two behavior changes:
+
+#### 1. `dehydrate()` no longer includes `error.stack`
+
+Dehydrated error entries previously carried `error.stack`, which can leak internal
+file paths to clients in SSR flows. Stacks are now omitted by default; `message`
+and `name` are always preserved.
+
+```typescript
+// Opt back in for server-side debugging only:
+const state = dehydrate(queryClient, { includeStack: true });
+```
+
+#### 2. `sha-384` / `sha-512` / `md5` checksum labels can no longer be written
+
+These labels were never implemented (every label previously produced the same
+non-cryptographic 32-bit djb2 value). Writing with them now throws
+`SerializationError`. `sha-256` is now a real FIPS 180-4 SHA-256 digest (64-hex),
+and legacy payloads from 1.0.0/1.1.0 remain readable under all labels.
+
+```typescript
+// Recommended:
+const serializer = new JsonSerializer({ checksum: 'sha-256' });
+// or keep the fast default:
+const serializer = new JsonSerializer();
+```
+
 ### From React Query
 
 #### Setup

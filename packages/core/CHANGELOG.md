@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1] - 2026-08-07
+
+### Security
+- **Honest checksum algorithms (SLC-INTEGRITY-001).** `sha-256` now computes a real
+  FIPS 180-4 SHA-256 digest (64-hex). Previously every configured label
+  (`sha-256`, `sha-384`, `sha-512`, `md5`, `fast-32`) silently computed the same
+  32-bit djb2 value. Writes under `sha-384`/`sha-512`/`md5` now throw
+  `SerializationError` (never implemented, deprecated); payloads persisted by
+  1.0.0/1.1.0 under any label (including legacy djb2 values labeled `sha-256`)
+  remain readable via dual-mode verification.
+- **`dehydrate()` no longer includes `error.stack` by default (SLC-HYDRATE-003).**
+  Dehydrated error entries expose only `message` and `name`; pass
+  `includeStack: true` to opt back in for server-side debugging.
+- **`hydrate()` validates entry structure (SLC-HYDRATE-001).** Malformed entries
+  (non-array `queryKey`, non-object query) are rejected before they can corrupt the
+  cache; default `overwrite` merge strategy is unchanged.
+- **`generateId()` uses a CSPRNG (SLC-RNG-001).** IDs use `crypto.randomUUID()` when
+  available, with the legacy scheme retained as a fallback.
+
+### Changed
+- `JsonSerializer`/`JsonDeserializer` checksum selection is now honored; the
+  `ChecksumAlgorithm` documentation describes the semantics of each label.
+
 ## [1.1.0] - 2026-08-06
 
 ### Changed

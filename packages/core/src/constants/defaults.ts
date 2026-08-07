@@ -66,4 +66,4 @@ export const MAX_CACHE_SIZE = 100000;
  *
  * Current runtime version.
  */
-export const RUNTIME_VERSION = '1.1.0';
+export const RUNTIME_VERSION = '1.1.1';

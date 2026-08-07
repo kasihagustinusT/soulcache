@@ -1,6 +1,6 @@
 {
   "name": "@soulcache/core",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "SoulCache Core Runtime - Deterministic data fetching and caching runtime",
   "license": "MIT",
   "author": "Kasih Agustinus <kasihagustinus@users.noreply.github.com>",

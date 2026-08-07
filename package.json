@@ -1,6 +1,6 @@
 {
   "name": "soulcache",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "description": "SoulCache - Universal Data Fetching & Caching Runtime",
   "license": "MIT",

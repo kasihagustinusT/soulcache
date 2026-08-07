@@ -232,7 +232,7 @@ export default function Home() {
             <div className="mt-3 animate-fade-in animate-delay-1">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-mono text-muted-foreground">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-foreground animate-pulse" />
-                v1.1.0
+                v1.1.1
               </span>
             </div>
 
