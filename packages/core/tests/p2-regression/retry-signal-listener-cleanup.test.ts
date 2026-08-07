@@ -26,7 +26,7 @@ describe('RetryEngine external signal listener leak', () => {
     await engine.execute(
       async (_attempt, _signal) => {
         attemptCount++;
-        throw new Error(`fail-${attemptCount}`);
+        throw new TypeError(`fail-${attemptCount}`);
       },
       { maxRetries: 5, baseDelay: 1, maxDelay: 5 },
       ['h2', 'listener-leak'],

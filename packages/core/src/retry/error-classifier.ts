@@ -59,18 +59,36 @@ export function classifyError(error: Error): ErrorClass {
 /**
  * Check if error is a network error.
  *
- * Network errors include:
- * - TypeError (common from fetch on network failure)
- * - Errors with 'fetch' in the message
- * - Errors with 'network' in the name
+ * Network errors are detected by typed contracts, not message content:
+ * - TypeError (fetch's canonical network-failure type)
+ * - Errors whose name is in the closed network set (FetchError, NetworkError)
+ * - Errors whose cause chain carries a typed network signal
+ *
+ * Message substrings (e.g. 'fetch', 'network') are deliberately ignored so an
+ * application error that merely mentions a network concept is never
+ * misclassified as retryable (F-9).
  */
 function isNetworkError(error: Error): boolean {
   if (error instanceof TypeError) {
     return true;
   }
-  const name = error.name.toLowerCase();
-  const message = error.message.toLowerCase();
-  return name.includes('network') || message.includes('network') || message.includes('fetch');
+  if (error.name === 'FetchError' || error.name === 'NetworkError') {
+    return true;
+  }
+  return hasNetworkCause(error.cause);
+}
+
+/**
+ * Check if an error's cause chain carries a typed network signal.
+ */
+function hasNetworkCause(cause: unknown): boolean {
+  if (cause instanceof TypeError) {
+    return true;
+  }
+  if (cause instanceof Error) {
+    return cause.name === 'FetchError' || cause.name === 'NetworkError';
+  }
+  return false;
 }
 
 /**
@@ -108,20 +126,22 @@ function classifyByStatus(status: number): ErrorClass {
 /**
  * Check if an error class is retryable by default.
  *
- * Per RETRY_SPEC behaviors 6-9:
+ * Per RETRY_SPEC behaviors 6-9 and F-9:
  * - 'abort' is never retried by default
  * - 'client' is not retried (except 408, 429 which map to timeout/server)
- * - 'network', 'timeout', 'server', 'unknown' are retried by default
+ * - 'unknown' is not retried by default — unclassified errors must not
+ *   trigger a retry storm; opt in via `retryableErrors` or `retryOn`
+ * - 'network', 'timeout', 'server' are retried by default
  */
 export function isRetryableByDefault(errorClass: ErrorClass): boolean {
   switch (errorClass) {
     case 'network':
     case 'timeout':
     case 'server':
-    case 'unknown':
       return true;
     case 'client':
     case 'abort':
+    case 'unknown':
       return false;
   }
 }

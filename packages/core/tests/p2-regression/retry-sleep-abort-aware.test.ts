@@ -13,7 +13,7 @@ describe('RetryEngine sleep is abort-aware', () => {
 
     const result = await engine.execute(
       async () => {
-        throw new Error('always-fail');
+        throw new TypeError('always-fail');
       },
       { maxRetries: 3, retryDelay: 5000 },
       ['h6', 'abort-sleep'],
@@ -34,7 +34,7 @@ describe('RetryEngine sleep is abort-aware', () => {
 
     const result = await engine.execute(
       async (_attempt) => {
-        throw new Error('always-fail');
+        throw new TypeError('always-fail');
       },
       { maxRetries: 1, retryDelay: 100 },
       ['h6', 'full-sleep'],
@@ -56,7 +56,7 @@ describe('RetryEngine sleep is abort-aware', () => {
 
     const result = await engine.execute(
       async () => {
-        throw new Error('fail');
+        throw new TypeError('fail');
       },
       { maxRetries: 3, retryDelay: 5000 },
       ['h6', 'pre-abort'],

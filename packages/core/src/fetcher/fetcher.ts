@@ -308,8 +308,7 @@ export class Fetcher {
    */
   private async handleResponse(response: Response, request: FetchRequest): Promise<unknown> {
     if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      const error = new Error(`HTTP ${response.status}: ${text || response.statusText}`);
+      const error = new Error(`HTTP ${response.status}: ${response.statusText}`);
       Object.defineProperty(error, 'name', { value: 'FetchError', configurable: true });
       Object.defineProperty(error, 'type', { value: 'http' as const, configurable: true });
       Object.defineProperty(error, 'status', { value: response.status, configurable: true });
@@ -436,12 +435,34 @@ export class Fetcher {
   /**
    * Get Dedup Key
    *
-   * Computes a deduplication key from QueryKey + method + URL.
+   * Computes a deduplication key from QueryKey + method + URL + body.
+   *
+   * The key is a function of the complete request semantics so that two
+   * concurrent calls share a promise only when they are semantically
+   * identical. Requests that differ in body never deduplicate (F-1).
    */
   private getDedupKey(queryKey: QueryKey, options: FetchOptions): string {
     const method = options.method ?? 'GET';
     const url = options.url ?? this.buildUrl(queryKey);
-    return `${method}:${url}`;
+    return `${method}:${url}:${this.bodyFingerprint(options.body)}`;
+  }
+
+  /**
+   * Body Fingerprint
+   *
+   * Deterministic canonical serialization of the request body used for dedup
+   * keying. Object keys are sorted so that semantically-identical bodies
+   * produce equal fingerprints. Unserializable values (BigInt, cycles) fall
+   * back to a marker rather than throwing; they are unreachable via
+   * `execute()` because `buildRequest` serializes the body first.
+   */
+  private bodyFingerprint(body: unknown): string {
+    if (body === undefined) return '';
+    try {
+      return canonicalStringify(body);
+    } catch {
+      return `unserializable:${typeof body}`;
+    }
   }
 
   // ─── Error Classification (Stage 7/8) ─────────────────────────────
@@ -553,4 +574,43 @@ export class Fetcher {
     }
     this.controllers.delete(requestId);
   }
+}
+
+/**
+ * Canonical Stringify
+ *
+ * Deterministic JSON serialization that sorts object keys so that
+ * semantically-equal values produce byte-identical output. Mirrors
+ * `JSON.stringify` semantics for omitted values (undefined, function, symbol)
+ * inside objects and arrays.
+ *
+ * @throws {TypeError} For BigInt, function, or symbol values, matching
+ * `JSON.stringify`.
+ */
+function canonicalStringify(value: unknown): string {
+  const type = typeof value;
+  if (value === null) return 'null';
+  if (type === 'bigint' || type === 'function' || type === 'symbol') {
+    throw new TypeError(`Cannot canonicalize value of type '${type}'`);
+  }
+  if (type !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) {
+    const items = value.map((item) =>
+      item === undefined || typeof item === 'function' || typeof item === 'symbol'
+        ? 'null'
+        : canonicalStringify(item),
+    );
+    return `[${items.join(',')}]`;
+  }
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record).sort();
+  const entries: string[] = [];
+  for (const key of keys) {
+    const item = record[key];
+    if (item === undefined || typeof item === 'function' || typeof item === 'symbol') {
+      continue;
+    }
+    entries.push(`${JSON.stringify(key)}:${canonicalStringify(item)}`);
+  }
+  return `{${entries.join(',')}}`;
 }

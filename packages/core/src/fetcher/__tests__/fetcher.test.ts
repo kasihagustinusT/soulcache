@@ -118,6 +118,22 @@ describe('Fetcher', () => {
       });
     });
 
+    it('should not leak the raw response body in the error message (F-4)', async () => {
+      const leakyBody = '<pre>TypeError at /srv/api/internal/crypto.ts:12</pre>';
+      mockFetch.mockResolvedValue(
+        new Response(leakyBody, { status: 500, statusText: 'Internal Server Error' }),
+      );
+
+      await expect(
+        fetcher.execute(['err'], { url: '/api/error' }),
+      ).rejects.toMatchObject({
+        name: 'FetchError',
+        type: 'http',
+        status: 500,
+        message: `HTTP 500: Internal Server Error`,
+      });
+    });
+
     it('should classify network errors', async () => {
       mockFetch.mockRejectedValue(new TypeError('fetch failed'));
 

@@ -100,7 +100,7 @@ describe('ABORT-1: abort identity is preserved through execute()', () => {
   it('still retries plain string rejections as unknown (behavior preserved)', async () => {
     const fn = vi.fn().mockRejectedValue('boom');
 
-    const result = await engine.execute(fn, cfg, ['abort1-string']);
+    const result = await engine.execute(fn, { ...cfg, retryableErrors: ['unknown'] }, ['abort1-string']);
 
     expect(result.attempts).toBe(2);
     expect(result.error).toBeInstanceOf(Error);
@@ -110,7 +110,7 @@ describe('ABORT-1: abort identity is preserved through execute()', () => {
   it('still retries nameless plain object rejections as unknown (behavior preserved)', async () => {
     const fn = vi.fn().mockRejectedValue({ code: 500 });
 
-    const result = await engine.execute(fn, cfg, ['abort1-nameless']);
+    const result = await engine.execute(fn, { ...cfg, retryableErrors: ['unknown'] }, ['abort1-nameless']);
 
     expect(result.attempts).toBe(2);
     expect(result.error).toBeInstanceOf(Error);
@@ -119,7 +119,7 @@ describe('ABORT-1: abort identity is preserved through execute()', () => {
   it('does not treat a name-only TypeError object as a network Error (no instanceof leak)', async () => {
     const fn = vi.fn().mockRejectedValue({ name: 'TypeError' });
 
-    const result = await engine.execute(fn, cfg, ['abort1-typeobj']);
+    const result = await engine.execute(fn, { ...cfg, retryableErrors: ['unknown'] }, ['abort1-typeobj']);
 
     expect(result.attempts).toBe(2);
   });

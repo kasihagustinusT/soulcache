@@ -68,7 +68,7 @@ describe('QueryEngine', () => {
         queryKey: ['users'],
         queryFn: async () => {
           attempts++;
-          if (attempts < 3) throw new Error('Network error');
+          if (attempts < 3) throw new TypeError('Network error');
           return { name: 'Alice' };
         },
         retry: { maxRetries: 3, baseDelay: 1, maxDelay: 5 },
@@ -175,7 +175,7 @@ describe('QueryEngine', () => {
         queryKey: ['users'],
         queryFn: async () => {
           attempts++;
-          if (attempts < 2) throw new Error('Network error');
+          if (attempts < 2) throw new TypeError('Network error');
           return { name: 'Alice' };
         },
         retry: { maxRetries: 3, baseDelay: 1, maxDelay: 5 },

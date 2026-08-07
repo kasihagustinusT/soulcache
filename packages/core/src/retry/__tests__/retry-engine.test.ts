@@ -174,8 +174,29 @@ describe('classifyError', () => {
     expect(classifyError(error)).toBe('unknown');
   });
 
-  it('should classify errors with network in message', () => {
+  it('should NOT classify by message content (F-9)', () => {
     const error = new Error('network connection lost');
+    expect(classifyError(error)).toBe('unknown');
+
+    const fetchMention = new Error('fetch budget exceeded');
+    expect(classifyError(fetchMention)).toBe('unknown');
+  });
+
+  it('should classify typed network markers (F-9)', () => {
+    const fetchError = Object.assign(new Error('Failed to fetch'), { name: 'FetchError' });
+    expect(classifyError(fetchError)).toBe('network');
+
+    const networkError = Object.assign(new Error('Connection refused'), { name: 'NetworkError' });
+    expect(classifyError(networkError)).toBe('network');
+  });
+
+  it('should classify TypeError as network (F-9)', () => {
+    expect(classifyError(new TypeError('fetch failed'))).toBe('network');
+  });
+
+  it('should classify errors with a typed network cause (F-9)', () => {
+    const cause = new TypeError('fetch failed');
+    const error = Object.assign(new Error('Upstream failed'), { name: 'HttpError', cause });
     expect(classifyError(error)).toBe('network');
   });
 });
@@ -193,8 +214,8 @@ describe('isRetryableByDefault', () => {
     expect(isRetryableByDefault('server')).toBe(true);
   });
 
-  it('should retry unknown errors', () => {
-    expect(isRetryableByDefault('unknown')).toBe(true);
+  it('should NOT retry unknown errors by default (F-9)', () => {
+    expect(isRetryableByDefault('unknown')).toBe(false);
   });
 
   it('should NOT retry client errors', () => {
@@ -386,6 +407,29 @@ describe('RetryEngine', () => {
       expect(result.success).toBe(false);
       expect(result.attempts).toBe(1);
       expect(fn).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not retry unknown errors that merely mention fetch (F-9)', async () => {
+      const fn = vi.fn().mockRejectedValue(new Error('fetch budget exceeded'));
+
+      const result = await engine.execute(fn, defaultConfig, ['test']);
+
+      expect(result.success).toBe(false);
+      expect(result.attempts).toBe(1);
+      expect(fn).toHaveBeenCalledTimes(1);
+    });
+
+    it('should retry unknown errors when explicitly opted in (F-9)', async () => {
+      const config = { ...defaultConfig, retryableErrors: ['unknown'] as const };
+      const fn = vi.fn().mockRejectedValue(new Error('unclassified failure'));
+
+      const resultPromise = engine.execute(fn, config, ['test']);
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      expect(result.success).toBe(false);
+      expect(result.attempts).toBe(4);
+      expect(fn).toHaveBeenCalledTimes(4);
     });
 
     it('should not retry abort errors', async () => {

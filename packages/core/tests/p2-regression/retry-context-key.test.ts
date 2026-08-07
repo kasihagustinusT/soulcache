@@ -54,7 +54,7 @@ describe('buildContext must include actual query key', () => {
 
     await engine.execute(
       async () => {
-        throw new Error('timeout');
+        throw new TypeError('timeout');
       },
       { maxRetries: 2, baseDelay: 100, maxDelay: 1000, backoff: 'constant', jitter: false },
       queryKey,
@@ -118,7 +118,7 @@ describe('buildContext must include actual query key', () => {
 
     const promise = engine.execute(
       async () => {
-        throw new Error('fail');
+        throw new TypeError('fail');
       },
       { maxRetries: 2, baseDelay: 50000, maxDelay: 50000, backoff: 'constant', jitter: false },
       queryKey,
