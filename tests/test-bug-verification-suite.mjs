@@ -28,7 +28,7 @@ const persistedState = () => ({
 });
 
 test('BC1: legacy checksum algorithm labels are accepted by the deserializer', () => {
-  const serializer = core.createJsonSerializer({ checksum: { algorithm: 'md5' } });
+  const serializer = core.createJsonSerializer({ checksum: { algorithm: 'fast-32' } });
   const { serialized, checksum } = serializer.serializeWithChecksum(persistedState());
 
   assert.ok(checksum, 'checksum present');
@@ -37,14 +37,36 @@ test('BC1: legacy checksum algorithm labels are accepted by the deserializer', (
   assert.equal(state.version, 1);
 });
 
-test('BC1: every v1.0.0 algorithm label round-trips', () => {
-  const labels = ['sha-256', 'sha-384', 'sha-512', 'md5', 'fast-32'];
+test('BC1: sha-256 and fast-32 checksums round-trip', () => {
   const deserializer = core.createJsonDeserializer();
-  for (const algorithm of labels) {
+  for (const algorithm of ['sha-256', 'fast-32']) {
     const serializer = core.createJsonSerializer({ checksum: { algorithm } });
     const { serialized, checksum } = serializer.serializeWithChecksum(persistedState());
     const state = deserializer.deserializeWithChecksum(serialized, checksum);
     assert.equal(state.version, 1, `label ${algorithm} accepted`);
+    if (algorithm === 'sha-256') {
+      assert.match(checksum.value, /^[0-9a-f]{64}$/, 'sha-256 produces a real 64-hex digest');
+    }
+  }
+});
+
+test('BC1: legacy checksum labels remain readable (read-only, rejected on write)', () => {
+  const deserializer = core.createJsonDeserializer();
+  const serializer = core.createJsonSerializer({ checksum: { algorithm: 'fast-32' } });
+  const { serialized, checksum } = serializer.serializeWithChecksum(persistedState());
+
+  for (const algorithm of ['sha-256', 'sha-384', 'sha-512', 'md5']) {
+    const labeled = { ...checksum, algorithm };
+    const state = deserializer.deserializeWithChecksum(serialized, labeled);
+    assert.equal(state.version, 1, `legacy label ${algorithm} readable`);
+  }
+
+  for (const algorithm of ['sha-384', 'sha-512', 'md5']) {
+    assert.throws(
+      () => core.createJsonSerializer({ checksum: { algorithm } }).serializeWithChecksum(persistedState()),
+      /never implemented and is deprecated/,
+      `legacy label ${algorithm} rejected on write`,
+    );
   }
 });
 

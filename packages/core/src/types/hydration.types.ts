@@ -93,6 +93,13 @@ export interface DehydrationOptions {
   readonly includeErrors?: boolean;
 
   /**
+   * Whether to include the error `stack` in dehydrated error entries.
+   * Defaults to false: `stack` exposes internal file paths and is omitted
+   * unless explicitly requested (e.g. server-side debugging).
+   */
+  readonly includeStack?: boolean;
+
+  /**
    * Whether to include stale/expired queries.
    * Defaults to false.
    */

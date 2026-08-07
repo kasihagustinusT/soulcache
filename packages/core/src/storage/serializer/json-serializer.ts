@@ -8,12 +8,17 @@
 
 import type { Serializer, PersistedState, ChecksumConfig, ChecksumInfo, ChecksumAlgorithm } from '../types';
 import { SerializationError } from '../errors';
+import { sha256Hex } from '../checksum/sha256';
 
 /**
  * Supported checksum algorithms.
  *
- * Includes the legacy labels so a configured checksum algorithm that was
- * valid in 1.0.0 remains accepted; `fast-32` is the default.
+ * `fast-32` is the default and is documented as a non-cryptographic checksum
+ * for detecting accidental data corruption. `sha-256` computes a real
+ * FIPS 180-4 SHA-256 digest. The legacy labels (`sha-384`, `sha-512`, `md5`)
+ * remain listed for backward compatibility when READING payloads persisted by
+ * 1.0.0/1.1.0, but they never implemented their namesake algorithm and are no
+ * longer accepted for new writes.
  */
 const SUPPORTED_ALGORITHMS: ChecksumAlgorithm[] = [
   'sha-256',
@@ -111,14 +116,38 @@ export class JsonSerializer implements Serializer {
    * @returns Checksum information
    */
   private calculateChecksum(data: string, algorithm: ChecksumAlgorithm): ChecksumInfo {
-    // Simple hash implementation for browser/Node.js compatibility
-    // In production, this could use Web Crypto API or a hash library
-    const value = this.fast32Hash(data);
+    const value = this.hashValue(data, algorithm);
 
     return {
       algorithm,
       value,
     };
+  }
+
+  /**
+   * Compute the digest for a given algorithm.
+   *
+   * - `fast-32`: 32-bit djb2 derivative, non-cryptographic, default.
+   * - `sha-256`: real FIPS 180-4 SHA-256 (64 hex chars).
+   * - `sha-384`/`sha-512`/`md5`: legacy labels that NEVER computed their
+   *   namesake algorithm in 1.0.0/1.1.0 (they always produced the 32-bit
+   *   djb2 value). Writing them would silently persist a value that is not
+   *   what the label promises, so new writes are rejected with migration
+   *   guidance. Payloads already persisted under these labels remain
+   *   readable via the deserializer.
+   */
+  private hashValue(data: string, algorithm: ChecksumAlgorithm): string {
+    if (algorithm === 'sha-256') {
+      return sha256Hex(data);
+    }
+    if (algorithm === 'sha-384' || algorithm === 'sha-512' || algorithm === 'md5') {
+      throw new SerializationError(
+        `Checksum algorithm "${algorithm}" was never implemented and is deprecated. ` +
+        'Use "sha-256" for cryptographic integrity or "fast-32" for corruption detection. ' +
+        'Existing payloads persisted under this label remain readable.',
+      );
+    }
+    return this.fast32Hash(data);
   }
 
   /**

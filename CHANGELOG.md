@@ -5,6 +5,36 @@ All notable changes to SoulCache will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-08-07
+
+### Security
+
+- **Honest checksum algorithms (SLC-INTEGRITY-001).** `sha-256` now computes a
+  real FIPS 180-4 SHA-256 digest. Previously every configured algorithm
+  (`sha-256`, `sha-384`, `sha-512`, `md5`, `fast-32`) silently computed the same
+  non-cryptographic 32-bit djb2 value, so a `sha-256`-labeled payload gave no
+  more integrity protection than `fast-32`. New writes under `sha-384`,
+  `sha-512`, or `md5` now throw with migration guidance; payloads persisted by
+  1.0.0/1.1.0 under any label (including legacy djb2 values labeled `sha-256`)
+  remain readable and verify correctly.
+- **`dehydrate()` no longer includes `error.stack` by default (SLC-HYDRATE-003).**
+  Dehydrated error entries expose only `message` and `name`, preventing internal
+  file paths from leaking to clients in SSR flows. Pass `includeStack: true` to
+  opt back in for server-side debugging.
+- **`hydrate()` validates entry structure (SLC-HYDRATE-001).** Malformed entries
+  (non-array `queryKey`, non-object query) are rejected before they can corrupt
+  the cache. The default `overwrite` merge strategy is unchanged; only hydrate
+  state you can authenticate (see `SECURITY.md`).
+- **`generateId()` uses a CSPRNG (SLC-RNG-001).** IDs are now generated with
+  `crypto.randomUUID()` when available, with the legacy scheme retained as a
+  fallback for environments without Web Crypto.
+
+### Changed
+
+- `JsonSerializer`/`JsonDeserializer` checksum selection is now honored; the
+  `ChecksumAlgorithm` documentation in `packages/core/src/storage/types.ts`
+  describes the semantics of each label.
+
 ## [1.1.0] - 2026-08-06
 
 ### Changed

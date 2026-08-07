@@ -124,10 +124,14 @@ export interface Deserializer {
 /**
  * Supported checksum algorithms.
  *
- * Superset union restored for backward compatibility: the legacy labels
- * (`sha-256`, `sha-384`, `sha-512`, `md5`) are retained so payloads
- * persisted before `fast-32` was introduced remain readable, and `fast-32`
- * is the default for newly written payloads.
+ * - `fast-32` (default): non-cryptographic 32-bit djb2 derivative used to
+ *   detect accidental data corruption. It is NOT an anti-tamper control.
+ * - `sha-256`: real FIPS 180-4 SHA-256 digest (since 1.1.1). Unkeyed, so it
+ *   detects accidental corruption but does not authenticate the data; use an
+ *   HMAC with a server-held secret for tamper-resistance.
+ * - `sha-384`, `sha-512`, `md5` (legacy labels): retained so payloads
+ *   persisted by 1.0.0/1.1.0 remain readable. These labels never computed
+ *   their namesake algorithm; they are read-only and rejected on new writes.
  */
 export type ChecksumAlgorithm = 'sha-256' | 'sha-384' | 'sha-512' | 'md5' | 'fast-32';
 

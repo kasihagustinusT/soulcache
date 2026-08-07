@@ -137,11 +137,22 @@ function deepEqualInternal(a: unknown, b: unknown, depth: number): boolean {
 /**
  * Generate Unique ID
  *
- * Generates a unique identifier.
+ * Generates a unique identifier using a cryptographically secure random
+ * source (`crypto.randomUUID`) when available. Falls back to a
+ * timestamp + `Math.random` scheme only in environments without Web Crypto
+ * (legacy browsers), matching the pre-1.1.1 behavior.
+ *
+ * These IDs are internal request/task/observer identifiers and carry no
+ * security meaning today; the CSPRNG is defense-in-depth so the function is
+ * safe to use for any future token-like purpose.
  *
  * @returns A unique string identifier
  */
 export function generateId(): string {
+  const cryptoApi = globalThis.crypto;
+  if (typeof cryptoApi?.randomUUID === 'function') {
+    return cryptoApi.randomUUID();
+  }
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).slice(2, 8);
   return `${timestamp}-${random}`;

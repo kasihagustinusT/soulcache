@@ -64,6 +64,37 @@ describe('Hydration Runtime', () => {
       );
     });
 
+    it('should omit error.stack by default', () => {
+      cache.set({
+        queryKey: ['fail'],
+        error: new Error('test error'),
+        state: 'error',
+      });
+
+      const state = dehydrate(cache);
+      const error = state.queries[0].error as { stack?: string };
+      expect(error).toBeDefined();
+      expect(error.stack).toBeUndefined();
+    });
+
+    it('should include error.stack only when includeStack is set', () => {
+      cache.set({
+        queryKey: ['fail'],
+        error: new Error('test error'),
+        state: 'error',
+      });
+
+      const state = dehydrate(cache, { includeStack: true });
+      const error = state.queries[0].error as { stack?: string };
+      expect(error.stack).toBeTypeOf('string');
+    });
+
+    it('should not dehydrate stack for non-error entries', () => {
+      cache.set({ queryKey: ['ok'], data: 1, state: 'success' });
+      const state = dehydrate(cache, { includeStack: true });
+      expect(state.queries[0].error).toBeUndefined();
+    });
+
     it('should respect maxQueries option', () => {
       cache.set({ queryKey: ['a'], data: 1, state: 'success' });
       cache.set({ queryKey: ['b'], data: 2, state: 'success' });
@@ -273,6 +304,58 @@ describe('Hydration Runtime', () => {
       hydrate(cache, state, { mergeStrategy: 'merge' });
 
       expect(cache.get(['a'])?.data).toBe('fresh');
+    });
+
+    it('should reject malformed entries (non-array queryKey)', () => {
+      const state = {
+        version: 1,
+        timestamp: Date.now(),
+        queries: [
+          { queryKey: 'nope', data: 1, state: 'success', updatedAt: Date.now() },
+        ],
+      };
+
+      expect(() => hydrate(cache, state as unknown as DehydratedState)).toThrow(TypeError);
+      expect(cache.size).toBe(0);
+    });
+
+    it('should reject malformed entries (non-object query)', () => {
+      const state = {
+        version: 1,
+        timestamp: Date.now(),
+        queries: [42],
+      };
+
+      expect(() => hydrate(cache, state as unknown as DehydratedState)).toThrow(TypeError);
+      expect(cache.size).toBe(0);
+    });
+
+    it('should keep valid entries before a malformed one out of the cache', () => {
+      const state = {
+        version: 1,
+        timestamp: Date.now(),
+        queries: [
+          { queryKey: 'bad', data: 1, state: 'success', updatedAt: Date.now() },
+          { queryKey: ['good'], data: 2, state: 'success', updatedAt: Date.now() },
+        ],
+      };
+
+      expect(() => hydrate(cache, state as unknown as DehydratedState)).toThrow(TypeError);
+      expect(cache.size).toBe(0);
+    });
+
+    it('should not write __proto__ query keys into Object.prototype', () => {
+      const state: DehydratedState = {
+        version: 1,
+        timestamp: Date.now(),
+        queries: [
+          { queryKey: ['__proto__', 'polluted'], queryHash: 'x', data: { hacked: true }, state: 'success', updatedAt: Date.now() },
+        ],
+      };
+
+      hydrate(cache, state);
+
+      expect(({} as Record<string, unknown>).polluted).toBeUndefined();
     });
   });
 

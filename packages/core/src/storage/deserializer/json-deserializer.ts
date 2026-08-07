@@ -14,6 +14,7 @@ import {
   UnknownAlgorithmError,
   VersionIncompatibleError,
 } from '../errors';
+import { sha256Hex } from '../checksum/sha256';
 
 /**
  * Supported checksum algorithms.
@@ -213,8 +214,13 @@ export class JsonDeserializer implements Deserializer {
     // Calculate checksum
     const calculated = this.calculateChecksum(data, expectedChecksum.algorithm);
 
-    // Compare
-    if (calculated.value !== expectedChecksum.value) {
+    // Backward compatibility: 1.0.0/1.1.0 wrote djb2 values under the
+    // "sha-256" label. Accept those legacy digests in addition to the real
+    // SHA-256 digest so previously-persisted payloads keep validating.
+    if (
+      calculated.value !== expectedChecksum.value &&
+      !this.matchesLegacy(data, expectedChecksum.algorithm, expectedChecksum.value)
+    ) {
       throw new ChecksumMismatchError(
         `Checksum mismatch. Expected: ${expectedChecksum.value}, Got: ${calculated.value}`
       );
@@ -229,12 +235,47 @@ export class JsonDeserializer implements Deserializer {
    * @returns Checksum information
    */
   private calculateChecksum(data: string, algorithm: ChecksumAlgorithm): ChecksumInfo {
-    const value = this.fast32Hash(data);
+    const value = this.hashValue(data, algorithm);
 
     return {
       algorithm,
       value,
     };
+  }
+
+  /**
+   * Compute the digest for a given algorithm.
+   *
+   * `sha-256` is verified against BOTH the real SHA-256 digest and the legacy
+   * 32-bit djb2 value. 1.0.0/1.1.0 labeled their (always-djb2) values as
+   * `sha-256`; accepting either keeps those payloads readable while new writes
+   * use a real SHA-256 digest. The remaining legacy labels (`sha-384`,
+   * `sha-512`, `md5`) and `fast-32` only ever produced the djb2 value and are
+   * verified against it for read compatibility.
+   */
+  private hashValue(data: string, algorithm: ChecksumAlgorithm): string {
+    if (algorithm === 'sha-256') {
+      return sha256Hex(data);
+    }
+    return this.fast32Hash(data);
+  }
+
+  /**
+   * Whether the supplied digest matches a payload for a legacy algorithm.
+   *
+   * Used by the sha-256 dual-mode check: a value is valid if it equals the
+   * real SHA-256 digest OR the legacy djb2 digest that 1.0.0/1.1.0 wrote.
+   *
+   * @param data - Original data
+   * @param algorithm - Algorithm as declared by the payload
+   * @param value - Supplied digest
+   * @returns Whether the digest matches under any computation for the label
+   */
+  private matchesLegacy(data: string, algorithm: ChecksumAlgorithm, value: string): boolean {
+    if (algorithm !== 'sha-256') {
+      return false;
+    }
+    return value === this.fast32Hash(data);
   }
 
   /**

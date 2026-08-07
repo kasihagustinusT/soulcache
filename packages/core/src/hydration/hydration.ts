@@ -33,6 +33,7 @@ export function dehydrate(
   const entries = cache.entries();
   const maxQueries = options?.maxQueries ?? entries.length;
   const includeErrors = options?.includeErrors ?? true;
+  const includeStack = options?.includeStack ?? false;
   const includeStale = options?.includeStale ?? false;
 
   const queries: DehydratedQuery[] = [];
@@ -68,7 +69,10 @@ export function dehydrate(
         message: entry.error.message,
         name: entry.error.name,
       };
-      if (entry.error.stack !== undefined) {
+      // `stack` exposes internal file paths when the dehydrated state is sent
+      // to a client. It is opt-in to avoid leaking server implementation
+      // details (SLC-HYDRATE-003).
+      if (includeStack && entry.error.stack !== undefined) {
         errorEntry.stack = entry.error.stack;
       }
       (dehydrated as { error?: typeof errorEntry }).error = errorEntry;
@@ -122,6 +126,11 @@ export function hydrate(
     // Apply custom filter
     if (options?.filter && !options.filter(query)) continue;
 
+    // Reject malformed entries before they can corrupt the cache
+    if (!isValidHydrationQuery(query)) {
+      throw new TypeError('Invalid dehydrated state: query must be an object with an array "queryKey"');
+    }
+
     // Check if query already exists
     const existing = cache.get(query.queryKey);
 
@@ -152,6 +161,24 @@ export function hydrate(
 
     hydratedCount++;
   }
+}
+
+/**
+ * Is Valid Hydration Query
+ *
+ * Structural guard for `hydrate()`. Hydration input is application-influenced
+ * (and, in some deployments, client-influenced); malformed entries must not be
+ * written into the cache. Mirrors the validation performed by `deserialize()`.
+ *
+ * @param query - Candidate dehydrated query
+ * @returns Whether the entry is structurally valid
+ */
+function isValidHydrationQuery(query: unknown): query is DehydratedQuery {
+  if (query === null || typeof query !== 'object' || Array.isArray(query)) {
+    return false;
+  }
+  const q = query as Record<string, unknown>;
+  return Array.isArray(q.queryKey);
 }
 
 /**

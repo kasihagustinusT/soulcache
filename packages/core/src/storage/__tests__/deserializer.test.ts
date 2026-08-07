@@ -143,8 +143,10 @@ describe('JsonDeserializer', () => {
       expect(result.version).toBe(1);
     });
 
-    it('should accept every legacy checksum algorithm label (BC1 superset restore)', () => {
-      const serializer = new JsonSerializer({ checksum: { algorithm: 'md5' } });
+    it('should accept every legacy checksum algorithm label on read (BC1 superset restore)', () => {
+      // 1.0.0/1.1.0 wrote the 32-bit djb2 value under every label. Those
+      // payloads MUST keep validating regardless of the label they carry.
+      const serializer = new JsonSerializer({ checksum: { algorithm: 'fast-32' } });
       const deserializer = new JsonDeserializer({ validateChecksum: true });
 
       const state = createTestState();
@@ -153,11 +155,36 @@ describe('JsonDeserializer', () => {
       for (const algorithm of ['md5', 'sha-256', 'sha-384', 'sha-512', 'fast-32'] as const) {
         const labeled = { ...checksum!, algorithm };
         const result = deserializer.deserializeWithChecksum(serialized, labeled);
-        expect(result.version).toBe(1);
+        expect(result.version).toBe(1, `label ${algorithm} readable`);
       }
     });
 
-    it('should round-trip payloads written under a legacy algorithm label', () => {
+    it('should accept a legacy djb2 digest under the sha-256 label (1.0.0/1.1.0 payloads)', () => {
+      // Legacy payloads carry an 8-char djb2 value labeled "sha-256".
+      const serializer = new JsonSerializer({ checksum: { algorithm: 'fast-32' } });
+      const deserializer = new JsonDeserializer({ validateChecksum: true });
+
+      const state = createTestState();
+      const { serialized, checksum } = serializer.serializeWithChecksum(state);
+
+      const legacySha256 = { algorithm: 'sha-256' as const, value: checksum!.value };
+      const result = deserializer.deserializeWithChecksum(serialized, legacySha256);
+      expect(result.version).toBe(1);
+    });
+
+    it('should reject a legacy djb2 digest under the sha-256 label when data differs', () => {
+      const serializer = new JsonSerializer({ checksum: { algorithm: 'fast-32' } });
+      const deserializer = new JsonDeserializer({ validateChecksum: true });
+
+      const state = createTestState();
+      const { checksum } = serializer.serializeWithChecksum(state);
+
+      const tampered = JSON.stringify(createTestState()).replace('"users": [1, 2, 3]', '"users": [9, 9, 9]');
+      const legacySha256 = { algorithm: 'sha-256' as const, value: checksum!.value };
+      expect(() => deserializer.deserializeWithChecksum(tampered, legacySha256)).toThrow();
+    });
+
+    it('should round-trip payloads written under the sha-256 label (real SHA-256)', () => {
       const serializer = new JsonSerializer({ checksum: { algorithm: 'sha-256' } });
       const deserializer = new JsonDeserializer({ validateChecksum: true });
 
@@ -167,6 +194,16 @@ describe('JsonDeserializer', () => {
       const result = deserializer.deserializeWithChecksum(serialized, checksum);
       expect(result.version).toBe(1);
       expect(checksum!.algorithm).toBe('sha-256');
+      expect(checksum!.value).toMatch(/^[0-9a-f]{64}$/);
+    });
+
+    it('should reject legacy-only write labels (sha-384, sha-512, md5)', () => {
+      for (const algorithm of ['sha-384', 'sha-512', 'md5'] as const) {
+        const serializer = new JsonSerializer({ checksum: { algorithm } });
+        expect(() => serializer.serializeWithChecksum(createTestState())).toThrow(
+          /never implemented and is deprecated/,
+        );
+      }
     });
 
     it('should reject an unsupported algorithm label', () => {
