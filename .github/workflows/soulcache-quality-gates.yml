@@ -67,7 +67,7 @@ jobs:
           target-url: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       - name: "Post Initial Comment"
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           GITHUB_TOKEN: ${{ steps.bot-token.outputs.token || github.token }}
           header: soulcache-quality-gates
@@ -164,7 +164,7 @@ jobs:
 
       - name: "Update Final Comment"
         if: always()
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           GITHUB_TOKEN: ${{ steps.bot-token.outputs.token || github.token }}
           header: soulcache-quality-gates
