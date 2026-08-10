@@ -42,7 +42,7 @@
     "validate:docs": "node docs/scripts/validate.mjs"
   },
   "devDependencies": {
-    "@changesets/changelog-github": "^0.5.0",
+    "@changesets/changelog-github": "^0.7.0",
     "@changesets/cli": "^2.27.0",
     "@eslint/js": "^9.18.0",
     "@types/node": "^22.10.7",
@@ -52,7 +52,7 @@
     "prettier": "^3.4.2",
     "tsup": "^8.3.6",
     "typescript": "^5.8.0",
-    "typescript-eslint": "^8.65.0",
+    "typescript-eslint": "^8.66.0",
     "vite-node": "^6.0.0",
     "vitest": "^3.0.4"
   },
